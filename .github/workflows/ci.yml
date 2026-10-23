@@ -50,5 +50,7 @@ jobs:
           test -s public/assets/vendor/tabler/tabler.rtl.min.css
           test -s public/assets/vendor/vazirmatn/Vazirmatn-Regular.woff2
           test -s storage/fonts/Vazirmatn-Regular.ttf
+      - name: Persian PDF and Excel output verification
+        run: php tests/exports.php
       - name: End-to-end installation and authentication smoke
         run: bash tests/smoke.sh
