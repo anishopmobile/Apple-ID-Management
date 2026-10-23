@@ -1,0 +1,17 @@
+{
+  "name": "anishop-apple-id-management",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Locally bundled Persian RTL admin assets",
+  "scripts": {
+    "build:assets": "node scripts/build-assets.mjs"
+  },
+  "dependencies": {
+    "@tabler/core": "1.4.0",
+    "apexcharts": "4.7.0",
+    "jquery": "3.7.1",
+    "persian-date": "1.1.0-rc3",
+    "persian-datepicker": "1.2.0",
+    "vazirmatn": "33.0.3"
+  }
+}
