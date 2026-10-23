@@ -11,6 +11,13 @@ ini_set('display_errors', '0');
 ini_set('log_errors', '1');
 
 $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (int)($_SERVER['SERVER_PORT'] ?? 0) === 443;
+$clientIp = (string)($_SERVER['REMOTE_ADDR'] ?? '');
+if (PHP_SAPI !== 'cli' && !$https && !in_array($clientIp, ['127.0.0.1', '::1'], true)) {
+    http_response_code(403);
+    header('Content-Type: text/plain; charset=UTF-8');
+    exit('برای امنیت اطلاعات، دسترسی به پنل تنها از طریق HTTPS مجاز است.');
+}
+if ($https) { header('Strict-Transport-Security: max-age=31536000'); }
 if (!is_dir(STORAGE_PATH)) {
     @mkdir(STORAGE_PATH, 0700, true);
 }
