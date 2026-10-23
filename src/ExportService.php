@@ -23,7 +23,7 @@ final class ExportService
             'format' => 'A4',
             'fontDir' => array_merge($directories, [$fontPath]),
             'fontdata' => array_merge($fonts, [
-                'vazirmatn' => ['R' => 'Vazirmatn-Regular.ttf', 'B' => 'Vazirmatn-Bold.ttf'],
+                'vazirmatn' => ['R' => 'Vazirmatn-Regular.ttf', 'B' => 'Vazirmatn-Bold.ttf', 'useOTL' => 0xFF, 'useKashida' => 75],
             ]),
             'default_font' => 'vazirmatn',
             'tempDir' => sys_get_temp_dir(),
