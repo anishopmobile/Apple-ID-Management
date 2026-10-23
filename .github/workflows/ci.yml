@@ -1,4 +1,4 @@
-name: PHP / MySQL / RTL assets checks
+name: PHP / MySQL / RTL assets checks + ready-to-install ZIP
 on:
   push:
     branches: [main]
@@ -54,3 +54,54 @@ jobs:
         run: php tests/exports.php
       - name: End-to-end installation and authentication smoke
         run: bash tests/smoke.sh
+
+  package-ready-site:
+    name: Build downloadable site package
+    needs: php-and-browser
+    # Do not publish unreviewed pull request code as a deployment artifact.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      # Fresh checkout: the smoke test in the other job deletes install.php.
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, pdo_mysql, gd, intl, zip, xml, dom, simplexml, xmlreader, xmlwriter
+          tools: composer:v2
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Prepare production PHP libraries
+        run: composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader
+      - name: Prepare all self-hosted frontend assets
+        run: |
+          npm install --ignore-scripts --no-audit --no-fund
+          npm run build:assets
+      - name: Test archive generation and secret exclusions
+        run: python3 -m unittest discover -s tests -p 'test_package.py' -v
+      - name: Assemble distributable and SHA-256 checksums
+        id: bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(echo "$GITHUB_SHA" | cut -c1-12)"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          python3 scripts/package_release.py --output dist --version "$VERSION"
+          (cd dist && sha256sum --check -- *.sha256)
+          test -s "dist/apple-id-management-$VERSION.zip"
+          test -s "dist/apple-id-management-$VERSION.zip.sha256"
+      - name: Upload ready-to-install bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: apple-id-management-ready-${{ steps.bundle.outputs.version }}
+          path: |
+            dist/*.zip
+            dist/*.sha256
+            dist/*.json
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
