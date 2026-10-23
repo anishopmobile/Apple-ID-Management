@@ -182,7 +182,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         exit;
                     } catch (Throwable $ex) {
                         error_log('[Installer] ' . $ex->getMessage());
-                        $error = $ex instanceof RuntimeException ? $ex->getMessage() : 'ایجاد جداول یا ذخیره تنظیمات ناموفق بود. دسترسی CREATE و INSERT و مجوز نوشتن storage را بررسی کنید.';
+                        $error = get_class($ex) === RuntimeException::class ? $ex->getMessage() : 'ایجاد جداول یا ذخیره تنظیمات ناموفق بود. دسترسی CREATE و INSERT و مجوز نوشتن storage را بررسی کنید.';
                     } finally {
                         flock($lock, LOCK_UN);
                         fclose($lock);
@@ -202,7 +202,7 @@ $tested = !empty($_SESSION['install_db']) && (time() - (int)($_SESSION['install_
 <link rel="stylesheet" href="/assets/css/app.css">
 <script src="/assets/js/setup.js" defer></script>
 </head>
-<body class="theme-light setup-body" data-tested="<?= $tested ? '1' : '0' ?>">
+<body class="theme-light setup-body" data-tested="<?= $tested ? '1' : '0' ?>" data-step="<?= field('action') === 'finish' ? 'admin' : 'db' ?>">
 <main class="container container-tight py-5">
   <header class="text-center mb-4"><div class="brand-mark mx-auto">A</div><h1 class="h2 mt-3">نصب سامانه مدیریت Apple ID</h1>
   <p class="text-secondary">راه‌اندازی اولیه امن در دو مرحله</p></header>
