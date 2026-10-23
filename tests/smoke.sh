@@ -18,6 +18,14 @@ TOKEN="$(grep -oP 'name="_csrf" value="\K[^"]+' "$TMP" | head -1)"
 test -n "$TOKEN"
 echo '[smoke] installer initial page passed'
 curl -sS -b "$COOKIE" -c "$COOKIE" \
+  --data-urlencode "_csrf=$TOKEN" --data-urlencode 'action=finish' \
+  --data-urlencode 'site_name=آنی شاپ' --data-urlencode 'full_name=مدیر آزمایشی' \
+  --data-urlencode 'username=testadmin' --data-urlencode 'password=Example-CI-Pass-1234' \
+  --data-urlencode 'password_confirm=Example-CI-Pass-1234' "$BASE/install.php" >"$TMP"
+grep -q 'ابتدا اتصال دیتابیس' "$TMP"
+test ! -e storage/config.php
+echo '[smoke] direct administrator setup before DB verification rejected'
+curl -sS -b "$COOKIE" -c "$COOKIE" \
   --data-urlencode "_csrf=$TOKEN" --data-urlencode 'action=test' \
   --data-urlencode 'APP_TZ=Asia/Tehran' --data-urlencode 'DB_HOST=127.0.0.1' \
   --data-urlencode 'DB_PORT=1' --data-urlencode 'DB_NAME=apple_ci' \
@@ -64,3 +72,24 @@ grep -qiE 'HTTP/1.1 303' "$HEAD"
 curl -sS -b "$COOKIE" -c "$COOKIE" -D "$HEAD" -o /dev/null "$BASE/index.php"
 grep -qiE 'HTTP/1.1 303' "$HEAD"
 echo '[smoke] logout and access control passed'
+# Test the persistent token separately from any PHP session cookie.
+PERSISTENT="$(awk -F'\t' '$6=="aid_remember" {print $7}' "$COOKIE" | tail -1)"
+# The current cookie jar is expected to have had its remember cookie revoked on logout.
+# Confirm CSRF denies state-changing actions without a valid token.
+CODE="$(curl -sS -o /dev/null -w '%{http_code}' -b "$COOKIE" -c "$COOKIE" \
+  --data-urlencode 'username=testadmin' --data-urlencode 'password=Example-CI-Pass-1234' \
+  "$BASE/index.php?route=login")"
+test "$CODE" = '419'
+echo '[smoke] invalid login CSRF rejected'
+curl -sS -b "$COOKIE" -c "$COOKIE" "$BASE/index.php?route=login" >"$TMP"
+TOKEN="$(grep -oP 'name="_csrf" value="\K[^"]+' "$TMP" | head -1)"
+for i in $(seq 1 8); do
+  curl -sS -b "$COOKIE" -c "$COOKIE" \
+    --data-urlencode "_csrf=$TOKEN" --data-urlencode 'username=testadmin' \
+    --data-urlencode 'password=incorrect-password' "$BASE/index.php?route=login" >/dev/null
+done
+CODE="$(curl -sS -o /dev/null -w '%{http_code}' -b "$COOKIE" -c "$COOKIE" \
+  --data-urlencode "_csrf=$TOKEN" --data-urlencode 'username=testadmin' \
+  --data-urlencode 'password=incorrect-password' "$BASE/index.php?route=login")"
+test "$CODE" = '429'
+echo '[smoke] IP/account login rate limit passed'
