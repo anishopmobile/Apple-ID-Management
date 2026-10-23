@@ -2,6 +2,19 @@
 
 پنل خصوصی و فارسی مدیریت اطلاعات Apple ID مشتریان با PHP 8.2+، MySQL، HTML، CSS، JavaScript و AJAX. فقط بخش مدیریت دارد. تاریخ‌ها در رابط شمسی هستند، طراحی بر پایه Tabler RTL با فونت Vazirmatn انجام شده است.
 
+## دریافت نسخه آماده نصب بدون Composer و npm در مقصد
+
+✅ GitHub Actions به‌صورت خودکار پس از هر Push روی شاخه main یا اجرای دستی از Actions:
+
+1. PHP lint و JavaScript syntax، تست نصب روی MySQL 8، ورود، CSRF، داشبورد، تولید PDF فارسی و Excel را اجرا می‌کند.
+2. **فقط پس از موفقیت تست‌ها** و با یک checkout تمیز، Composer را با گزینه --no-dev اجرا کرده و npm را نصب و فایل‌های Tabler RTL، Vazirmatn، ApexCharts و تقویم فارسی را محلی‌سازی می‌کند.
+3. بستهٔ نصب ZIP شامل public، src، vendor کامل PHP، فونت‌های PDF در storage/fonts و راهنمای INSTALL-FA.md می‌سازد؛ node_modules، تست‌ها، فایل config.php، قفل نصب، سشن‌ها و اسرار را وارد بسته نمی‌کند.
+4. فایل zip اصلی، فایل SHA-256 و گزارش JSON را در **Actions → اجرای سبز موفق → Artifacts → apple-id-management-ready-<SHA>** قرار می‌دهد (نگهداری ۳۰ روزه).
+
+برای دانلود ابتدا فایل ZIP متعلق به GitHub Actions را دریافت و باز کنید؛ داخل آن ZIP اصلی قابل انتقال به هاست/ویندوز وجود دارد. فایل اصلی را استخراج کنید. روی مقصد **هیچ فرمان composer یا npm لازم نیست**؛ فقط PHP، افزونه‌های مورد نیاز، وب‌سرور و MySQL باید از قبل نصب باشند. برای نصب روی ویندوز/XAMPP، هاست اشتراکی و بررسی checksum، راهنمای **INSTALL-FA.md** را بخوانید.
+
+با هر commit جدید، فایل artifact نسخه همان commit تولید می‌شود؛ این بسته **ZIP کد قابل اجرا است، نه نصب‌کننده ویندوز و نه بستهٔ PHP/MySQL**.
+
 ## امکانات فاز نخست
 
 - نصب دو مرحله‌ای با تست AJAX اتصال MySQL، پیام فارسی خطا، فعال شدن مرحله مدیر فقط در صورت موفقیت.
@@ -13,7 +26,7 @@
 ## نصب و راه‌اندازی
 
 1. سرور با PHP 8.2+ و افزونه‌های pdo_mysql، mbstring، gd، zip، xml، intl، MySQL 8، Composer، Node.js 20+ و npm آماده باشد. یک دیتابیس از قبل ساخته شده و حساب MySQL دارای مجوزهای CREATE، SELECT، INSERT، UPDATE و DELETE لازم است.
-2. در ریشهٔ پروژه اجرا کنید:
+2. **فقط اگر سورس پروژه را برای توسعه محلی clone کرده‌اید (نه بستهٔ آماده Actions)** در ریشه پروژه اجرا کنید:
 
        composer install --no-dev --prefer-dist --optimize-autoloader
        npm install --ignore-scripts
@@ -34,7 +47,7 @@
 
 ## تست‌های پروژه
 
-Workflow موجود در .github/workflows/ci.yml بر روی GitHub Actions اجرا می‌شود و شامل PHP lint، syntax JavaScript، نصب وابستگی‌ها، ساخت دارایی‌های محلی و آزمون خودکار اتصال MySQL، نصب، حذف نصاب، ورود مدیر، کوکی ماندگار، داشبورد و خروج است.
+Workflow موجود در .github/workflows/ci.yml بر روی GitHub Actions اجرا می‌شود و شامل PHP lint، syntax JavaScript، نصب وابستگی‌ها، ساخت دارایی‌های محلی، آزمون نصب/ورود و اعتبارسنجی بسته نهایی است. بسته قابل دانلود تنها وقتی هر دو Job سبز شوند بارگذاری می‌شود.
 
 برای اجرای تست روی محیط **ایزوله و خالی** (نه سرور اصلی):
 
