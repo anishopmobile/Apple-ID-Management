@@ -1,0 +1,14 @@
+/vendor/
+/node_modules/
+/storage/*
+!/storage/.gitkeep
+!/storage/.htaccess
+/public/assets/vendor/tabler/
+/public/assets/vendor/apexcharts/
+/public/assets/vendor/jquery/
+/public/assets/vendor/persian-date/
+/public/assets/vendor/persian-datepicker/
+/public/assets/vendor/vazirmatn/
+.DS_Store
+.env
+*.log
