@@ -1,0 +1,54 @@
+name: PHP / MySQL / RTL assets checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  php-and-browser:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root-ci-password
+          MYSQL_DATABASE: apple_ci
+          MYSQL_USER: apple_ci
+          MYSQL_PASSWORD: ci-password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -u apple_ci -pci-password"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, pdo_mysql, gd, intl, zip, xml, dom, simplexml, xmlreader, xmlwriter
+          tools: composer:v2
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: PHP syntax validation
+        run: find public src -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: JavaScript syntax validation
+        run: |
+          node --check scripts/build-assets.mjs
+          node --check public/assets/js/app.js
+          node --check public/assets/js/setup.js
+          node --check public/assets/vendor/hcg/hcg-select.js
+      - name: PHP dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+      - name: Build all local browser assets
+        run: |
+          npm install --ignore-scripts --no-audit --no-fund
+          npm run build:assets
+          test -s public/assets/vendor/tabler/tabler.rtl.min.css
+          test -s public/assets/vendor/vazirmatn/Vazirmatn-Regular.woff2
+          test -s storage/fonts/Vazirmatn-Regular.ttf
+      - name: End-to-end installation and authentication smoke
+        run: bash tests/smoke.sh
