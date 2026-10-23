@@ -1,0 +1,19 @@
+{
+  "name": "anishop/apple-id-management",
+  "description": "Private-admin Persian Apple ID management dashboard",
+  "type": "project",
+  "license": "proprietary",
+  "require": {
+    "php": "^8.2",
+    "ext-pdo": "*",
+    "ext-pdo_mysql": "*",
+    "ext-mbstring": "*",
+    "mpdf/mpdf": "^8.2",
+    "phpoffice/phpspreadsheet": "^4.0"
+  },
+  "config": {
+    "allow-plugins": {},
+    "sort-packages": true,
+    "optimize-autoloader": true
+  }
+}
