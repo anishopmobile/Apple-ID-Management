@@ -10,7 +10,7 @@
     "@tabler/core": "1.4.0",
     "apexcharts": "4.7.0",
     "jquery": "3.7.1",
-    "persian-date": "1.1.0-rc3",
+    "persian-date": "1.1.0",
     "persian-datepicker": "1.2.0",
     "vazirmatn": "33.0.3"
   }
