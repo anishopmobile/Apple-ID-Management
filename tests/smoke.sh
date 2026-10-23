@@ -11,7 +11,7 @@ php -S "127.0.0.1:$APP_TEST_PORT" -t public >"$LOG" 2>&1 &
 PID=$!
 trap 'kill "$PID" 2>/dev/null || true; rm -f "$COOKIE" "$TMP" "$HEAD" "$LOG"' EXIT
 for i in $(seq 1 30); do
-  if curl -fsS "$BASE/install.php" -o "$TMP"; then break; fi
+  if curl -fsS -b "$COOKIE" -c "$COOKIE" "$BASE/install.php" -o "$TMP"; then break; fi
   sleep 1
 done
 TOKEN="$(grep -oP 'name="_csrf" value="\K[^"]+' "$TMP" | head -1)"
