@@ -351,7 +351,12 @@ final class RecordController
               $value=$record['values'][(int)$field['id']]??null;
               if ($field['type']==='date') $value=RecordManager::dateLabel($value);
               if ($field['type']==='boolean' && $value!==null && $value!=='') $value=(int)$value?'بله':'خیر';
-              if ($field['type']==='money' && $value!==null && $value!=='') $value=number_format((float)$value,2,'.',',');
+              if ($field['type']==='money' && $value!==null && $value!=='') {
+                  $parts=explode('.',(string)$value,2);
+                  $parts[0]=preg_replace('/\B(?=(\d{3})+(?!\d))/',',',$parts[0]);
+                  $decimals=isset($parts[1]) ? rtrim($parts[1],'0') : '';
+                  $value=$parts[0] . ($decimals!==''?'.'.$decimals:'');
+              }
           ?><td><?=e($value===null || $value===''?'—':mb_strimwidth((string)$value,0,110,'…'))?></td><?php endforeach;?>
           <td><div class="d-flex gap-1"><button type="button" class="btn btn-sm btn-outline-primary edit-record" data-id="<?=e((string)$record['id'])?>">ویرایش</button><button type="button" class="btn btn-sm btn-outline-danger delete-record" data-id="<?=e((string)$record['id'])?>">حذف</button></div></td>
           </tr><?php endforeach;?>
