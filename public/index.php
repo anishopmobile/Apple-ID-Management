@@ -205,6 +205,7 @@ try {
         <script src="/assets/vendor/persian-datepicker/persian-datepicker.min.js" defer></script>
         <script src="/assets/vendor/hcg/hcg-select.js" defer></script>
         <script src="/assets/js/records.js" defer></script>
+        <?php if ($route === 'records'): ?><script src="/assets/js/records-grid.js" defer></script><?php endif; ?>
         <?php endif; ?>
         <meta name="csrf-token" content="<?=e(csrf())?>">
         </head><body class="theme-light">
