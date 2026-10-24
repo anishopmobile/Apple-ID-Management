@@ -125,6 +125,45 @@ echo '[smoke] real 85x55mm PDF download, CSRF, POST-only, invalid/deleted IDs pr
 # Keep the authenticated HTML page in TMP: later CSRF/logout checks read it.
 curl -fsS -b "$COOKIE" -c "$COOKIE" "$BASE/index.php?route=records" >"$TMP"
 echo '[smoke] dynamic record field pages and server integration passed'
+# Create a second real date field in the isolated CI database so that the
+# browser can prove two independent selections never toggle each other.
+php -r 'require "src/common.php";require "src/RecordManager.php";$m=new RecordManager(db(),config()["DB_PREFIX"]);$m->saveField(["label"=>"تاریخ آزمون مستقل دوم","type"=>"date","sort_order"=>991,"max_length"=>255,"required"=>0,"active"=>1,"filterable"=>1,"show_in_table"=>1]);'
+# Actual HTTP form regression: checked, unchecked, and stale/cached payloads.
+# PHP must receive native checkbox names directly, never JS-generated JSON.
+DATE_FIELD_ID="$(php -r 'require "src/common.php";require "src/RecordManager.php";$r=new RecordManager(db(),config()["DB_PREFIX"]);$r->migrate();foreach($r->fields() as $f) if($f["type"]==="date" && $f["field_key"]!=="created_at") {echo $f["id"];break;}')"
+test -n "$DATE_FIELD_ID"
+curl -fsS -b "$COOKIE" -c "$COOKIE" "$BASE/index.php?route=settings" >"$TMP"
+DATE_CSRF="$(grep -oP 'name="_csrf" value="\K[^"]+' "$TMP" | head -1)"
+grep -q 'name="date_exceptions_version" value="2"' "$TMP"
+grep -q 'name="jalali_exempt_ids\[\]"' "$TMP"
+curl -sS -b "$COOKIE" -c "$COOKIE" -D "$HEAD" -o /dev/null \
+  --data-urlencode "_csrf=$DATE_CSRF" --data-urlencode 'action=save_date_mode' \
+  --data-urlencode 'date_exceptions_version=2' --data-urlencode 'date_display_mode=gregorian' \
+  --data-urlencode "jalali_exempt_ids[]=$DATE_FIELD_ID" "$BASE/index.php?route=settings"
+grep -qiE 'HTTP/1.1 303' "$HEAD"
+php -r 'require "src/common.php";$x=json_decode(setting("date_jalali_exempt_ids","[]"),true);if($x!==[(int)$argv[1]] || setting("date_display_mode")!=="gregorian")exit(1);' "$DATE_FIELD_ID"
+curl -fsS -b "$COOKIE" -c "$COOKIE" "$BASE/index.php?route=settings" >"$TMP"
+grep -q '1 استثنای سفارشی ذخیره شد' "$TMP"
+# The same POST without any jalali_exempt_ids[] is deliberate "uncheck all".
+curl -sS -b "$COOKIE" -c "$COOKIE" -D "$HEAD" -o /dev/null \
+  --data-urlencode "_csrf=$DATE_CSRF" --data-urlencode 'action=save_date_mode' \
+  --data-urlencode 'date_exceptions_version=2' --data-urlencode 'date_display_mode=gregorian' \
+  "$BASE/index.php?route=settings"
+grep -qiE 'HTTP/1.1 303' "$HEAD"
+php -r 'require "src/common.php";if(setting("date_jalali_exempt_ids")!=="[]" || setting("date_display_mode")!=="gregorian")exit(1);'
+# Fail closed for an older JSON-based form: don't erase already persisted settings.
+curl -sS -b "$COOKIE" -c "$COOKIE" -D "$HEAD" -o /dev/null \
+  --data-urlencode "_csrf=$DATE_CSRF" --data-urlencode 'action=save_date_mode' \
+  --data-urlencode 'jalali_exempt_json=["99999"]' \
+  --data-urlencode 'date_display_mode=jalali' "$BASE/index.php?route=settings"
+php -r 'require "src/common.php";if(setting("date_jalali_exempt_ids")!=="[]" || setting("date_display_mode")!=="gregorian")exit(1);'
+# Restore browser-test defaults.
+curl -sS -b "$COOKIE" -c "$COOKIE" -D "$HEAD" -o /dev/null \
+  --data-urlencode "_csrf=$DATE_CSRF" --data-urlencode 'action=save_date_mode' \
+  --data-urlencode 'date_exceptions_version=2' --data-urlencode 'date_display_mode=jalali' \
+  "$BASE/index.php?route=settings"
+php -r 'require "src/common.php";if(setting("date_jalali_exempt_ids")!=="[]" || setting("date_display_mode")!=="jalali")exit(1);'
+echo '[smoke] real checked/unchecked checkbox POST, MySQL persistence and old-form rejection: PASS'
 node tests/modal_browser.mjs "$BASE"
 # Run extra PDF fixture creation after the UI suite so its search-count
 # assertions still target the original two 'card-' regression records.

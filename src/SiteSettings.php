@@ -221,20 +221,20 @@ final class SiteSettings
                 case 'save_date_mode':
                     $mode=$_POST['date_display_mode']??null;
                     if (!is_string($mode)) throw new DomainException('نوع نمایش تاریخ نامعتبر است.');
-                    $json=$_POST['jalali_exempt_json']??null;
-                    if (!is_string($json) || strlen($json)>4000) {
+                    // Native HTML checkbox submission is the single source of truth:
+                    // only individually checked fields are posted. Missing array
+                    // means that the user intentionally unchecked every custom field.
+                    // A version marker prevents an old cached JSON-only form from
+                    // silently clearing the saved exceptions.
+                    if (($_POST['date_exceptions_version']??null)!=='2') {
+                        throw new DomainException('فرم تنظیمات تاریخ قدیمی است؛ صفحه را دوباره بارگذاری کنید.');
+                    }
+                    $exempt=$_POST['jalali_exempt_ids']??[];
+                    if (!is_array($exempt) || !array_is_list($exempt)) {
                         throw new DomainException('فهرست استثناهای تاریخ معتبر نیست.');
                     }
-                    try {
-                        $exempt=json_decode($json,true,32,JSON_THROW_ON_ERROR);
-                    } catch(JsonException $ex) {
-                        throw new DomainException('ساختار انتخاب استثناهای تاریخ معتبر نیست.');
-                    }
-                    if (!is_array($exempt) || !array_is_list($exempt)) {
-                        throw new DomainException('ساختار انتخاب استثناهای تاریخ معتبر نیست.');
-                    }
                     $this->updateDatePreferences($mode,$exempt);
-                    $message='نوع نمایش تاریخ و استثناهای شمسی ذخیره شدند.';
+                    $message='تنظیم نمایش تاریخ و '.count($exempt).' استثنای سفارشی ذخیره شد.';
                     break;
                 case 'save_commitment':
                     $html=$_POST['commitment_html']??null;
@@ -274,14 +274,39 @@ final class SiteSettings
         $jalaliFields=date_jalali_exempt_ids();
         ?>
         <?php if(is_array($flash)):?><div class="alert alert-<?=e($flash[0])?>"><?=e($flash[1])?></div><?php endif;?>
-        <div class="row row-cards">
-          <div class="col-12 col-xl-6">
-            <section class="card mb-3" id="date-display-settings">
+        <div id="settings-layout" class="container-fluid px-0">
+          <div class="row g-3 mb-3" id="settings-general-row">
+            <div class="col-12 col-xl-6"><section class="card h-100"><div class="card-header"><h3 class="card-title">عنوان سایت</h3></div>
+              <form method="post" action="/index.php?route=settings" class="card-body">
+                <input type="hidden" name="_csrf" value="<?=e(csrf())?>"><input type="hidden" name="action" value="save_title">
+                <label class="form-label" for="settings-site-name">نام نمایشی سایت</label>
+                <input id="settings-site-name" class="form-control" name="site_name" maxlength="100" required value="<?=e(setting('site_name','مدیریت Apple ID'))?>">
+                <p class="small text-secondary mt-2">در سربرگ صفحه ورود، عنوان تب مرورگر و بالای سایدبار نمایش داده می‌شود.</p>
+                <button class="btn btn-primary" type="submit">ذخیره عنوان</button>
+              </form>
+            </section></div>
+            <div class="col-12 col-xl-6"><section class="card h-100"><div class="card-header"><h3 class="card-title">لوگوی سایت</h3></div><div class="card-body">
+              <?php if($logo):?><img src="<?=e($logo)?>" class="site-logo-preview mb-3" alt="لوگوی فعلی سایت"><?php else:?><p class="text-secondary">هنوز لوگویی ثبت نشده است؛ حرف A نمایش داده می‌شود.</p><?php endif;?>
+              <form action="/index.php?route=settings" method="post" enctype="multipart/form-data">
+                <input type="hidden" name="_csrf" value="<?=e(csrf())?>"><input type="hidden" name="action" value="upload_logo">
+                <label class="form-label" for="settings-logo">انتخاب تصویر لوگو</label>
+                <input class="form-control" type="file" id="settings-logo" name="logo" accept="image/png,image/jpeg,image/webp" required>
+                <p class="small text-secondary mt-2">PNG، JPG یا WebP، حداکثر ۱ مگابایت؛ فایل در پوشه خصوصی ذخیره می‌شود.</p>
+                <button class="btn btn-primary" type="submit">بارگذاری لوگو</button>
+              </form>
+              <?php if($logo):?><form method="post" action="/index.php?route=settings" class="mt-3">
+                <input type="hidden" name="_csrf" value="<?=e(csrf())?>"><input type="hidden" name="action" value="remove_logo">
+                <button class="btn btn-outline-danger" type="submit">حذف لوگو</button>
+              </form><?php endif;?>
+            </div></section></div>
+          </div>
+          <div class="row g-3 mb-3" id="settings-preferences-row">
+            <div class="col-12 col-xl-7"><section class="card h-100" id="date-display-settings">
               <div class="card-header"><h3 class="card-title">نوع نمایش فیلد تاریخ</h3></div>
               <form method="post" action="/index.php?route=settings" class="card-body" id="date-exception-form" autocomplete="off">
                 <input type="hidden" name="_csrf" value="<?=e(csrf())?>">
                 <input type="hidden" name="action" value="save_date_mode">
-                <input type="hidden" name="jalali_exempt_json" id="date-exception-payload" value="[]">
+                <input type="hidden" name="date_exceptions_version" value="2">
                 <label for="settings-date-mode" class="form-label">تقویم نمایش تاریخ</label>
                 <select id="settings-date-mode" name="date_display_mode" class="form-select">
                   <option value="jalali" <?=date_display_mode()==='jalali'?'selected':''?>>شمسی</option>
@@ -296,7 +321,7 @@ final class SiteSettings
                     $selected=$locked || in_array($id,$jalaliFields,true); ?>
                     <div class="form-check mb-2">
                       <input type="checkbox" class="form-check-input date-exemption-input" id="date-exception-<?=$id?>"
-                        value="<?=$id?>"
+                        name="<?=$locked?'':'jalali_exempt_ids[]'?>" value="<?=$id?>"
                         <?=$selected?'checked':''?> <?=$locked?'disabled':''?>>
                       <label class="form-check-label" for="date-exception-<?=$id?>">
                         <?=e((string)$dateField['label'])?>
@@ -309,33 +334,23 @@ final class SiteSettings
                 <p id="date-exception-count" class="small text-secondary mt-2" role="status" aria-live="polite"></p>
                 <button type="submit" class="btn btn-primary mt-3">ذخیره نوع تاریخ و استثناها</button>
               </form>
-            </section>
-            <section class="card mb-3"><div class="card-header"><h3 class="card-title">عنوان سایت</h3></div>
-              <form method="post" action="/index.php?route=settings" class="card-body">
-                <input type="hidden" name="_csrf" value="<?=e(csrf())?>"><input type="hidden" name="action" value="save_title">
-                <label class="form-label" for="settings-site-name">نام نمایشی سایت</label>
-                <input id="settings-site-name" class="form-control" name="site_name" maxlength="100" required value="<?=e(setting('site_name','مدیریت Apple ID'))?>">
-                <p class="small text-secondary mt-2">در سربرگ صفحه ورود، عنوان تب مرورگر و بالای سایدبار نمایش داده می‌شود.</p>
-                <button class="btn btn-primary" type="submit">ذخیره عنوان</button>
+            </section></div>
+            <div class="col-12 col-xl-5"><section class="card h-100"><div class="card-header"><h3 class="card-title">تغییر رمز عبور مدیر</h3></div>
+              <form method="post" action="/index.php?route=settings" class="card-body" id="settings-password-form">
+                <input type="hidden" name="_csrf" value="<?=e(csrf())?>"><input type="hidden" name="action" value="change_password">
+                <div class="mb-3"><label class="form-label" for="settings-current-password">رمز عبور قبلی</label>
+                  <input id="settings-current-password" class="form-control ltr-input" type="password" name="current_password" autocomplete="current-password" required></div>
+                <div class="mb-3"><label class="form-label" for="settings-new-password">رمز عبور جدید</label>
+                  <input id="settings-new-password" class="form-control ltr-input" type="password" name="new_password" autocomplete="new-password" minlength="12" maxlength="512" required></div>
+                <div class="mb-3"><label class="form-label" for="settings-confirm-password">تکرار رمز عبور جدید</label>
+                  <input id="settings-confirm-password" class="form-control ltr-input" type="password" name="new_password_confirm" autocomplete="new-password" minlength="12" maxlength="512" required></div>
+                <p class="small text-secondary">حداقل ۱۲ کاراکتر. پس از تغییر، توکن‌های ورود طولانی‌مدت قبلی باطل می‌شوند.</p>
+                <button type="submit" class="btn btn-primary">تغییر رمز عبور</button>
               </form>
-            </section>
-            <section class="card"><div class="card-header"><h3 class="card-title">لوگوی سایت</h3></div><div class="card-body">
-              <?php if($logo):?><img src="<?=e($logo)?>" class="site-logo-preview mb-3" alt="لوگوی فعلی سایت"><?php else:?><p class="text-secondary">هنوز لوگویی ثبت نشده است؛ حرف A نمایش داده می‌شود.</p><?php endif;?>
-              <form action="/index.php?route=settings" method="post" enctype="multipart/form-data">
-                <input type="hidden" name="_csrf" value="<?=e(csrf())?>"><input type="hidden" name="action" value="upload_logo">
-                <label class="form-label" for="settings-logo">انتخاب تصویر لوگو</label>
-                <input class="form-control" type="file" id="settings-logo" name="logo" accept="image/png,image/jpeg,image/webp" required>
-                <p class="small text-secondary mt-2">PNG، JPG یا WebP، حداکثر ۱ مگابایت؛ فایل در پوشه خصوصی ذخیره می‌شود.</p>
-                <button class="btn btn-primary" type="submit">بارگذاری لوگو</button>
-              </form>
-              <?php if($logo):?><form method="post" action="/index.php?route=settings" class="mt-3">
-                <input type="hidden" name="_csrf" value="<?=e(csrf())?>"><input type="hidden" name="action" value="remove_logo">
-                <button class="btn btn-outline-danger" type="submit">حذف لوگو</button>
-              </form><?php endif;?>
-            </div></section>
+            </section></div>
           </div>
-          <div class="col-12">
-            <section class="card" id="commitment-editor-settings">
+          <div class="row g-3" id="settings-commitment-row">
+            <div class="col-12"><section class="card" id="commitment-editor-settings">
               <div class="card-header"><h3 class="card-title">متن تعهدنامه برای گزارش تعهد</h3></div>
               <form method="post" action="/index.php?route=settings" class="card-body" id="commitment-settings-form">
                 <input type="hidden" name="_csrf" value="<?=e(csrf())?>">
@@ -356,22 +371,7 @@ final class SiteSettings
                 <p class="small text-secondary mt-2">متن ذخیره‌شده زیر کارت در PDF A4 گزارش تعهد چاپ می‌شود. فقط قالب‌بندی متن و فهرست مجاز است؛ تصاویر، کد و لینک‌های خارجی ذخیره نمی‌شوند. در صورت نبود ویرایشگر، کادر متن قابل استفاده باقی می‌ماند.</p>
                 <button type="submit" class="btn btn-primary">ذخیره متن تعهدنامه</button>
               </form>
-            </section>
-          </div>
-          <div class="col-12 col-xl-6">
-            <section class="card"><div class="card-header"><h3 class="card-title">تغییر رمز عبور مدیر</h3></div>
-              <form method="post" action="/index.php?route=settings" class="card-body" id="settings-password-form">
-                <input type="hidden" name="_csrf" value="<?=e(csrf())?>"><input type="hidden" name="action" value="change_password">
-                <div class="mb-3"><label class="form-label" for="settings-current-password">رمز عبور قبلی</label>
-                  <input id="settings-current-password" class="form-control ltr-input" type="password" name="current_password" autocomplete="current-password" required></div>
-                <div class="mb-3"><label class="form-label" for="settings-new-password">رمز عبور جدید</label>
-                  <input id="settings-new-password" class="form-control ltr-input" type="password" name="new_password" autocomplete="new-password" minlength="12" maxlength="512" required></div>
-                <div class="mb-3"><label class="form-label" for="settings-confirm-password">تکرار رمز عبور جدید</label>
-                  <input id="settings-confirm-password" class="form-control ltr-input" type="password" name="new_password_confirm" autocomplete="new-password" minlength="12" maxlength="512" required></div>
-                <p class="small text-secondary">حداقل ۱۲ کاراکتر. پس از تغییر، توکن‌های ورود طولانی‌مدت قبلی باطل می‌شوند.</p>
-                <button type="submit" class="btn btn-primary">تغییر رمز عبور</button>
-              </form>
-            </section>
+            </section></div>
           </div>
         </div>
         <?php
