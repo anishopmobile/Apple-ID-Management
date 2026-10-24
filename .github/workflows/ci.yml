@@ -68,7 +68,17 @@ jobs:
       - name: Persian PDF and Excel output verification
         run: php tests/exports.php
       - name: End-to-end installation and authentication smoke
+        env:
+          CARD_PDF_VISUAL_PREVIEW: "1"
         run: bash tests/smoke.sh
+      - name: Upload synthetic masked card preview (visual QA)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: apple-id-card-visual-preview
+          path: storage/card-preview-ci.png
+          if-no-files-found: error
+          retention-days: 7
 
   package-ready-site:
     name: Build downloadable site package
