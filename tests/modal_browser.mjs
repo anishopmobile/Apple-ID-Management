@@ -236,17 +236,6 @@ try {
   const searchName=filters.first();
   const nonce=await page.evaluate(() => { window.__ajaxPagePersisted='alive';return location.pathname;});
   await searchName.fill('مشتری مرورگر خارجی');
-  await page.waitForTimeout(750);
-  console.log('[browser diagnostic] record live:', await page.evaluate(async () => {
-    const form=document.querySelector('#record-filters');
-    const url=new URLSearchParams(new FormData(form));
-    url.set('route','records_listing_api');
-    const response=await fetch('/index.php?'+url);
-    const body=await response.text();
-    return {status:response.status,body:body.slice(0,600),statusLabel:document.querySelector('#record-live-status')?.textContent,
-      total:document.querySelector('#record-total')?.textContent,
-      filters:Array.from(form.querySelectorAll('[data-live-record-search]')).map(x=>({name:x.name,value:x.value}))};
-  }), 'jsErrors=',errors);
   await page.waitForFunction(() => document.querySelector('#record-total')?.textContent?.includes('رکوردها: 1'));
   assert.equal(await page.locator('#record-table-body tr').count(),1,
     'Name live search returns the matching record without a button click');
