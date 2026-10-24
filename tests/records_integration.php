@@ -149,6 +149,32 @@ try {
     check($count===2,'atomic Excel import');
     check((int)db()->query('SELECT COUNT(*) FROM ' . table('customers'))->fetchColumn()===$beforeCustomers+2,
         'import creates only one new customer for equivalent mobile formats');
+
+    // Strict headers, data-type checks, and atomic rejection of invalid files.
+    $reader=new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
+    $badBook=$reader->load($temp);
+    $badSheet=$badBook->getActiveSheet();
+    $originalHeader=(string)$badSheet->getCell('A1')->getValue();
+    $badSheet->setCellValueExplicit('A1','عنوان جابه‌جا شده',\PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+    (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($badBook))->save($temp);
+    forbidden(fn()=> $excel->inspect($temp),'invalid XLSX header rejected');
+    $badSheet->setCellValueExplicit('A1',$originalHeader,\PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+    // Mobile is the third column of the system-defined default ordering.
+    $badSheet->setCellValueExplicit('C2','شماره نامعتبر',\PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+    (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($badBook))->save($temp);
+    $invalidPreview=$excel->inspect($temp);
+    check(!empty($invalidPreview['errors']),'invalid Excel cell errors include its row');
+    check(str_contains(implode(' ',$invalidPreview['errors']),'ردیف 2'),'invalid row number reported');
+    $countBefore=(int)db()->query('SELECT COUNT(*) FROM ' . table('apple_records'))->fetchColumn();
+    forbidden(fn()=> $excel->commit($temp),'bad XLSX cannot be imported');
+    check((int)db()->query('SELECT COUNT(*) FROM ' . table('apple_records'))->fetchColumn()===$countBefore,
+        'bad import did not write partial records');
+    $badSheet->setCellValueExplicit('C2','09123456789',\PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+    $badSheet->setCellValue('C2','=SUM(1,2)');
+    (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($badBook))->save($temp);
+    $formulaPreview=$excel->inspect($temp);
+    check(!empty($formulaPreview['errors']),'formula cells rejected');
+    $badBook->disconnectWorksheets();
 } finally { @unlink($temp); }
 
 $manager->deleteRecord($rec1);
