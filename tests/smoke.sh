@@ -168,6 +168,8 @@ rm -f "$CM_PDF" "$CM_HEADER"
 echo '[smoke] commitment A4 download, same card, saved Persian editor text, authentication, POST and CSRF: PASS'
 
 php tests/date_display_integration.php
+# Refresh a CSRF-bearing HTML page; PDF text extraction replaced TMP.
+curl -fsS -b "$COOKIE" -c "$COOKIE" "$BASE/index.php?route=records" >"$TMP"
 
 
 
