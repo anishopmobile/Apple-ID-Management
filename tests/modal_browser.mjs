@@ -146,53 +146,114 @@ try {
   assert.equal(await systemDate.isChecked(),true,'Created-at must always stay Jalali');
   const optional=page.locator('#date-exception-fields input.date-exemption-input:not([disabled])');
   assert.ok(await optional.count()>0,'Custom date fields can be individually exempted');
-  const chosenId=await optional.first().getAttribute('value');
-  await optional.first().check();
-  assert.deepEqual(JSON.parse(await page.locator('#date-exception-payload').inputValue()),[chosenId],
-    'Payload contains exactly the checked checkbox, not every field');
+  assert.ok(await optional.count()>=2,'At least two independent date fields exist');
+  const chosenId=await optional.nth(0).getAttribute('value');
+  const secondId=await optional.nth(1).getAttribute('value');
+  const selectedIds=async()=>page.locator('#date-exception-form').evaluate(form=>
+    new FormData(form).getAll('jalali_exempt_ids[]'));
+  assert.deepEqual(await selectedIds(),[],
+    'Native form initially sends no checked optional field IDs');
+  assert.equal(await page.locator('#date-exception-payload').count(),0,
+    'No hidden JSON payload or fragile JS serialization remains');
+  assert.equal(await page.locator('input[name="date_exceptions_version"]').inputValue(),'2',
+    'Versioned native form protects against stale cached markup');
+
+  // Check one option by clicking its label: no other date field must change.
+  await page.locator('label[for="date-exception-'+chosenId+'"]').click();
+  assert.deepEqual(await selectedIds(),[chosenId],
+    'Only the first selected native checkbox gets submitted');
   await page.locator('#settings-date-mode').selectOption('gregorian');
   await page.locator('#date-display-settings button[type=submit]').click();
-  assert.equal(await page.locator('#settings-date-mode').inputValue(),'gregorian',
-    'Gregorian preference is stored after submitting settings form');
-  assert.equal(await page.locator('#date-exception-fields input[value="'+chosenId+'"]').isChecked(),true,
-    'Selected dynamic Jalali exception survives settings POST');
-  assert.equal(await page.locator('#date-exception-fields input[disabled]').isChecked(),true);
+  assert.match(await page.locator('.alert').first().innerText(),/1 استثنای سفارشی ذخیره شد/,
+    'Server confirms exactly one exception was stored');
+  assert.equal(await page.locator('#settings-date-mode').inputValue(),'gregorian');
+  assert.deepEqual(await selectedIds(),[chosenId],
+    'After POST redirect, only the one chosen date field stays selected');
+  await page.reload();
+  assert.deepEqual(await selectedIds(),[chosenId],
+    'Hard reload does not spontaneously recheck unselected fields');
+
+  // Add second; verify exact set across redirect and later navigation.
+  await page.locator('label[for="date-exception-'+secondId+'"]').click();
+  assert.deepEqual(await selectedIds(),[chosenId,secondId]);
+  await page.locator('#date-display-settings button[type=submit]').click();
+  assert.deepEqual(await selectedIds(),[chosenId,secondId],
+    'Two independently checked fields survive POST unchanged');
+  await page.goto(base + '/index.php?route=settings');
+  assert.deepEqual(await selectedIds(),[chosenId,secondId],
+    'Both choices also survive a separate navigation to Settings');
+
+  // Remove the first checkbox, without accidentally touching the second.
+  await page.locator('label[for="date-exception-'+chosenId+'"]').click();
+  assert.deepEqual(await selectedIds(),[secondId]);
+  await page.locator('#date-display-settings button[type=submit]').click();
+  assert.deepEqual(await selectedIds(),[secondId],
+    'Unchecking one of two choices remains unchecked after saving');
+
+  // Existing table still honors the remaining field exception.
   await page.goto(base + '/index.php?route=customers');
-  assert.match(await page.locator('#customer-list thead').innerText(), /شمسی/,
-    'System customer registration heading always Jalali despite Gregorian global mode');
+  assert.match(await page.locator('#customer-list thead').innerText(),/شمسی/,
+    'System customer registration heading always Jalali');
   assert.equal(await page.locator('body').getAttribute('data-date-mode'),'gregorian');
-  assert.match(await page.locator('#customer-list tbody tr').first().innerText(), new RegExp('[۰-۹]{4}/[۰-۹]{2}/[۰-۹]{2}'),
-    'Customer date values remain Jalali under Gregorian mode');
+  assert.match(await page.locator('#customer-list tbody tr').first().innerText(),
+    new RegExp('[۰-۹]{4}/[۰-۹]{2}/[۰-۹]{2}'),
+    'Customer registration dates stay Jalali');
   await page.goto(base + '/index.php?route=records');
   assert.equal(await page.locator('body').getAttribute('data-date-mode'),'gregorian');
-  assert.ok((await page.locator('body').getAttribute('data-date-exempt-ids')).split(',').includes(chosenId),
-    'AJAX client receives saved per-field IDs');
-  await page.locator('#record-filters').evaluate(form => form.requestSubmit());
-  await page.waitForFunction(() => document.querySelector('#record-live-status')?.textContent?.includes('رکورد مطابق'));
+  const ids=(await page.locator('body').getAttribute('data-date-exempt-ids')).split(',');
+  assert.ok(ids.includes(secondId) && !ids.includes(chosenId),
+    'Live record grid receives only the saved exception, not stale ones');
+  await page.locator('#record-filters').evaluate(form=>form.requestSubmit());
+  await page.waitForFunction(()=>document.querySelector('#record-live-status')?.textContent?.includes('رکورد مطابق'));
   const dateHeader=page.locator('#record-grid thead a[data-sort-label="تاریخ ثبت"]');
-  assert.equal(await dateHeader.count(),1,'Record system created-at column is rendered');
-  const createAtColumn=await dateHeader.evaluate(a => Array.from(a.closest('tr').children).indexOf(a.closest('th')));
-  const createdValue=await page.locator('#record-table-body tr[data-record-id],#record-table-body tr').first().locator('td').nth(createAtColumn).innerText();
-  assert.match(createdValue,new RegExp('[۰-۹]{4}/[۰-۹]{2}/[۰-۹]{2}'),
-    'AJAX record system created_at remains Jalali even when general calendar is Gregorian');
-  await page.goto(base + '/index.php?route=dashboard');
-  assert.match(await page.locator('main').innerText(), /شمسی/,
-    'Dashboard recent-record registration date stays Jalali');
+  const createdColumn=await dateHeader.evaluate(a=>Array.from(a.closest('tr').children).indexOf(a.closest('th')));
+  const creation=await page.locator('#record-table-body tr').first().locator('td').nth(createdColumn).innerText();
+  assert.match(creation,new RegExp('[۰-۹]{4}/[۰-۹]{2}/[۰-۹]{2}'),
+    'Record created_at remains Jalali in AJAX grid');
+
+  // Blocking the optional JS file cannot break native form submissions.
+  await page.route('**/assets/js/date-exceptions.js*',route=>
+    route.fulfill({status:200,contentType:'text/javascript',body:''}));
   await page.goto(base + '/index.php?route=settings');
-  await page.locator('label[for="date-exception-'+chosenId+'"]').click();
-  assert.deepEqual(JSON.parse(await page.locator('#date-exception-payload').inputValue()),[],
-    'Clicking a single label unchecks only that field, serializing an empty array');
+  assert.deepEqual(await selectedIds(),[secondId]);
+  await page.locator('label[for="date-exception-'+secondId+'"]').click();
+  assert.deepEqual(await selectedIds(),[],
+    'No-JS path submits an empty array when all optional checkboxes are unchecked');
   await page.locator('#date-display-settings button[type=submit]').click();
-  assert.equal(await page.locator('#date-exception-fields input[value="'+chosenId+'"]').isChecked(),false,
-    'Unchecking custom date exception is saved');
-  assert.equal(await page.locator('#date-exception-payload').inputValue(),'[]',
-    'Empty date exception list remains empty after reload');
-  assert.equal(await page.locator('#date-exception-fields input[disabled]').isChecked(),true,
-    'Permanent system exception cannot be unchecked');
+  assert.deepEqual(await selectedIds(),[],
+    'All optional checkboxes remain clear after save, without JavaScript');
+  await page.reload();
+  assert.deepEqual(await selectedIds(),[],
+    'Empty selection stays empty after a fresh page load with JS blocked');
+  assert.equal(await systemDate.isChecked(),true,'System locked checkbox still checked');
+  await page.unroute('**/assets/js/date-exceptions.js*');
   await page.locator('#settings-date-mode').selectOption('jalali');
   await page.locator('#date-display-settings button[type=submit]').click();
+  assert.deepEqual(await selectedIds(),[]);
   assert.equal(await page.locator('#settings-date-mode').inputValue(),'jalali');
-  console.log('[browser] system date always Jalali, custom exceptions selectable/persistent with Gregorian mode, record AJAX and dashboard: PASS');
+
+  // Desktop layout: logical settings groups are coherent, commitment always last.
+  const layout = await page.locator('#settings-layout').evaluate(node=>{
+    const box=id=>{const r=node.querySelector(id).getBoundingClientRect();
+      return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,width:r.width};};
+    return {
+      title:box('#settings-general-row .card:first-child'),
+      dates:box('#date-display-settings'),
+      password:box('#settings-password-form'),
+      commitment:box('#commitment-editor-settings'),
+      docWidth:document.documentElement.scrollWidth,
+      viewport:window.innerWidth,
+      last:node.querySelector('.row:last-child section')?.id
+    };
+  });
+  assert.ok(layout.commitment.top>=layout.dates.bottom-1 &&
+    layout.commitment.top>=layout.password.bottom-1,
+    'Commitment section visually appears below every other settings card');
+  assert.equal(layout.last,'commitment-editor-settings',
+    'Commitment is the final section in document order');
+  assert.ok(layout.docWidth<=layout.viewport+2,
+    'Desktop settings grid must not produce horizontal overflow');
+  console.log('[browser] date exceptions: one/two/none saved, real label clicks, hard reload, no-JS POST and commitment-last layout: PASS');
 
   // The offline HugeRTE must initialize and keep an editable native textarea.
   await page.goto(base + '/index.php?route=settings');
@@ -531,6 +592,22 @@ try {
   await page.locator('#record-modal').waitFor({state:'hidden'});
   await page.locator('.modal-backdrop').waitFor({state:'detached'});
   console.log('[browser] mobile viewport field/record modals passed');
+
+  await page.goto(base + '/index.php?route=settings');
+  const mobileSettings=await page.locator('#settings-layout').evaluate(node=>{
+    const commitment=node.querySelector('#commitment-editor-settings').getBoundingClientRect();
+    const others=['#date-display-settings','#settings-password-form','#settings-site-name','#settings-logo']
+      .map(s=>node.querySelector(s).getBoundingClientRect());
+    return {commitmentTop:commitment.top,earlierBottom:Math.max(...others.map(x=>x.bottom)),
+      docWidth:document.documentElement.scrollWidth,viewport:innerWidth,
+      editorWidth:node.querySelector('#commitment-html').getBoundingClientRect().width};
+  });
+  assert.ok(mobileSettings.commitmentTop>=mobileSettings.earlierBottom-1,
+    'Agreement editor is below every settings control in mobile layout');
+  assert.ok(mobileSettings.docWidth<=mobileSettings.viewport+2 &&
+    mobileSettings.editorWidth<=mobileSettings.viewport,
+    'Settings page has no horizontal overflow on 390px mobile viewport');
+  console.log('[browser] settings desktop/mobile geometry and last agreement editor: PASS');
 
   assert.deepEqual(errors, [], 'Browser must not emit JavaScript or network console errors');
   console.log('[browser] all Tabler modal + RTL layout regression checks: PASS');
