@@ -283,7 +283,7 @@ final class RecordController
             $extra = match($type) {
                 'mobile'=>' inputmode="tel" maxlength="25" placeholder="09123456789"',
                 'number','money'=>' inputmode="decimal" placeholder="مثلاً 12345.50"',
-                'date'=>' data-jalali-date placeholder="۱۴۰۵/۰۸/۰۲ یا ۲۰۲۶/۱۰/۲۴"',
+                'date'=>' data-jalali-date placeholder="'.(date_display_mode()==='gregorian'?'۲۰۲۶/۱۰/۲۴ یا ۱۴۰۵/۰۸/۰۲':'۱۴۰۵/۰۸/۰۲ یا ۲۰۲۶/۱۰/۲۴').'"',
                 'text'=>' maxlength="'.(int)$field['max_length'].'"',
                 default=>'',
             };
@@ -326,7 +326,7 @@ final class RecordController
         ?>
           <?php if (in_array($type,['number','money','date'],true)): ?>
           <div class="col-sm-6 col-lg-3"><label class="form-label"><?=e($f['label'])?> (از)</label><input class="form-control <?= $type==='date'?'jalali-filter':'ltr-input'?>" <?= $type==='date'?'data-jalali-date':'' ?> name="filter_min[<?=$id?>]" value="<?=e((string)($_GET['filter_min'][$id]??''))?>" placeholder="<?= $type==='date'?'شمسی یا میلادی':'حداقل'?>"></div>
-          <div class="col-sm-6 col-lg-3"><label class="form-label"><?=e($f['label'])?> (تا)</label><input class="form-control <?= $type==='date'?'jalali-filter':'ltr-input'?>" <?= $type==='date'?'data-jalali-date':'' ?> name="filter_max[<?=$id?>]" value="<?=e((string)($_GET['filter_max'][$id]??''))?>" placeholder="<?= $type==='date'?'۱۴۰۵/۰۸/۰۱':'حداکثر'?>"></div>
+          <div class="col-sm-6 col-lg-3"><label class="form-label"><?=e($f['label'])?> (تا)</label><input class="form-control <?= $type==='date'?'jalali-filter':'ltr-input'?>" <?= $type==='date'?'data-jalali-date':'' ?> name="filter_max[<?=$id?>]" value="<?=e((string)($_GET['filter_max'][$id]??''))?>" placeholder="<?= $type==='date'?(date_display_mode()==='gregorian'?'۲۰۲۶/۱۰/۲۴':'۱۴۰۵/۰۸/۰۲'):'حداکثر'?>"></div>
           <?php elseif ($type==='select' || $type==='boolean'): ?>
           <div class="col-sm-6 col-lg-3"><label class="form-label"><?=e($f['label'])?></label><select class="form-select" data-hcg-select name="filter[<?=$id?>]"><option value="">همه</option>
             <?php $opts=$type==='boolean'?['1'=>'بله','0'=>'خیر']:array_combine(RecordManager::options($f),RecordManager::options($f));
@@ -407,7 +407,14 @@ final class RecordController
         <?php if ($preview['rows']): ?><div class="table-responsive"><table class="table table-bordered"><thead><tr><th>ردیف</th><?php foreach ($preview['columns'] as $label): ?><th><?=e($label)?></th><?php endforeach;?></tr></thead><tbody>
         <?php $ordered=$fields; foreach ($preview['rows'] as $row): ?><tr><td><?=e((string)$row['excel_row'])?></td><?php foreach ($ordered as $f):
             $cell=$f['field_key']==='created_at'?$row['date']:($row['data'][(int)$f['id']]??''); ?>
-            <td><?=e((string)$cell)?></td><?php endforeach;?></tr><?php endforeach;?></tbody></table></div><?php endif;?>
+            <td><?php
+            $shown=(string)$cell;
+            if ($f['type']==='date' && trim($shown)!=='') {
+                $normalized=RecordManager::normalizeDate($shown);
+                if ($normalized!==null) $shown=RecordManager::dateLabel($normalized);
+            }
+            echo e($shown);
+            ?></td><?php endforeach;?></tr><?php endforeach;?></tbody></table></div><?php endif;?>
         <?php if ($preview['token'] && !$preview['errors']): ?><form method="post" action="/index.php?route=records" class="mt-3">
           <input type="hidden" name="_csrf" value="<?=e(csrf())?>"><input type="hidden" name="action" value="import_commit">
           <input type="hidden" name="token" value="<?=e($preview['token'])?>">

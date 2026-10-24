@@ -160,7 +160,7 @@ document.addEventListener('DOMContentLoaded', () => {
           for (const [id,value] of Object.entries(result.record.values)) {
             const input = recordForm.elements.namedItem('v['+id+']');
             if (!input) continue;
-            input.value = input.hasAttribute('data-jalali-date') ? toJalali(value) : (value ?? '');
+            input.value = input.hasAttribute('data-jalali-date') ? (document.body.dataset.dateMode === 'gregorian' ? String(value || '').replaceAll('-', '/') : toJalali(value)) : (value ?? '');
           }
           document.getElementById('record-modal-title').textContent = 'ویرایش رکورد شماره ' + result.record.id;
           resetErrors(recordForm);
@@ -194,9 +194,12 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('[data-jalali-date]').forEach((field) => {
       if (typeof window.jQuery === 'function' && typeof window.jQuery.fn.persianDatepicker === 'function') {
         try {
+          const gregorian = document.body.dataset.dateMode === 'gregorian';
           window.jQuery(field).persianDatepicker({
+            calendarType: gregorian ? 'gregorian' : 'persian',
             format: 'YYYY/MM/DD', autoClose: true, initialValue: false,
-            observer: false, calendar: { persian: { locale: 'fa' } }
+            observer: false, persianDigit: !gregorian,
+            calendar: { persian: { locale: 'fa' }, gregorian: { locale: 'en' } }
           });
         } catch (error) { /* text input remains usable if plugin fails */ }
       }

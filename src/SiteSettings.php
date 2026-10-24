@@ -48,6 +48,16 @@ final class SiteSettings
         $stmt->execute(['site_name',$name]);
     }
 
+    public function updateDateMode(string $mode): void
+    {
+        if (!in_array($mode,['jalali','gregorian'],true)) {
+            throw new DomainException('نوع نمایش تاریخ فقط می‌تواند شمسی یا میلادی باشد.');
+        }
+        $this->pdo->prepare('INSERT INTO '.table('settings').' (name,value) VALUES (?,?)
+            ON DUPLICATE KEY UPDATE value=VALUES(value)')->execute(['date_display_mode',$mode]);
+        date_display_mode($mode);
+    }
+
     public function updatePassword(array $request, int $adminId): void
     {
         $current=$request['current_password']??null;
@@ -135,6 +145,12 @@ final class SiteSettings
         require_csrf();
         try {
             switch ($_POST['action']??'') {
+                case 'save_date_mode':
+                    $mode=$_POST['date_display_mode']??null;
+                    if (!is_string($mode)) throw new DomainException('نوع نمایش تاریخ نامعتبر است.');
+                    $this->updateDateMode($mode);
+                    $message='نوع نمایش تاریخ در تمام صفحات و خروجی‌ها ذخیره شد.';
+                    break;
                 case 'save_title':
                     $this->updateTitle((string)($_POST['site_name']??''));$message='عنوان سایت ذخیره شد.';break;
                 case 'change_password':
@@ -164,6 +180,20 @@ final class SiteSettings
         <?php if(is_array($flash)):?><div class="alert alert-<?=e($flash[0])?>"><?=e($flash[1])?></div><?php endif;?>
         <div class="row row-cards">
           <div class="col-12 col-xl-6">
+            <section class="card mb-3" id="date-display-settings">
+              <div class="card-header"><h3 class="card-title">نوع نمایش فیلد تاریخ</h3></div>
+              <form method="post" action="/index.php?route=settings" class="card-body">
+                <input type="hidden" name="_csrf" value="<?=e(csrf())?>">
+                <input type="hidden" name="action" value="save_date_mode">
+                <label for="settings-date-mode" class="form-label">تقویم نمایش تاریخ</label>
+                <select id="settings-date-mode" name="date_display_mode" class="form-select">
+                  <option value="jalali" <?=date_display_mode()==='jalali'?'selected':''?>>شمسی</option>
+                  <option value="gregorian" <?=date_display_mode()==='gregorian'?'selected':''?>>میلادی</option>
+                </select>
+                <p class="small text-secondary mt-2">این تنظیم بر تاریخ‌های جدول‌ها، داشبورد، مشتریان، فرم ویرایش رکورد، فایل اکسل و کارت PDF تأثیر دارد. اطلاعات اصلی دیتابیس تغییر نمی‌کنند.</p>
+                <button type="submit" class="btn btn-primary">ذخیره نوع تاریخ</button>
+              </form>
+            </section>
             <section class="card mb-3"><div class="card-header"><h3 class="card-title">عنوان سایت</h3></div>
               <form method="post" action="/index.php?route=settings" class="card-body">
                 <input type="hidden" name="_csrf" value="<?=e(csrf())?>"><input type="hidden" name="action" value="save_title">

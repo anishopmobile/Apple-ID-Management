@@ -129,6 +129,7 @@ node tests/modal_browser.mjs "$BASE"
 # Run extra PDF fixture creation after the UI suite so its search-count
 # assertions still target the original two 'card-' regression records.
 php tests/apple_id_card_pdf_integration.php
+php tests/date_display_integration.php
 
 
 TOKEN="$(grep -oP 'name="_csrf" value="\K[^"]+' "$TMP" | head -1)"

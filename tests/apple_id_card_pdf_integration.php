@@ -68,6 +68,17 @@ card_pdf_assert($loaded['birthday']==='1405/08/02','birthday converted to Jalali
 card_pdf_assert($builder->dataForRecord($id2)['password']==='SECOND-SECRET-2026',
     'different record uses different password');
 
+// The stored birthday is a Gregorian DATE; only its printed calendar changes.
+date_display_mode('gregorian');
+card_pdf_assert($builder->dataForRecord($id1)['birthday']==='2026/10/24',
+    'PDF birthday follows Gregorian setting');
+$gregorianPdf=$builder->generate($id1,false);
+date_display_mode('jalali');
+card_pdf_assert($builder->dataForRecord($id1)['birthday']==='1405/08/02',
+    'PDF birthday follows Jalali setting');
+$jalaliPdf=$builder->generate($id1,false);
+card_pdf_assert($gregorianPdf!==$jalaliPdf,'switching calendar changes PDF content');
+date_display_mode('jalali');
 $masked=$builder->generate($id1,false);
 $full=$builder->generate($id1,true);
 $second=$builder->generate($id2,true);

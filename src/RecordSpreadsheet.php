@@ -37,7 +37,12 @@ final class RecordSpreadsheet
     {
         require_once dirname(__DIR__) . '/vendor/autoload.php';
         $this->manager->assertSystemFields();
-        $fields = $this->expectedFields();
+        // The 40-column cap protects uploads/imports; exports must include
+        // ALL active date and other fields even on installations with >40.
+        $fields = $this->manager->activeFields();
+        if (count($fields) > 100) {
+            throw new DomainException('خروجی اکسل حداکثر ۱۰۰ فیلد فعال را پشتیبانی می‌کند.');
+        }
         $workbook = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = $workbook->getActiveSheet();
         $sheet->setTitle('اطلاعات');

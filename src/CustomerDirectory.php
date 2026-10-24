@@ -53,7 +53,8 @@ final class CustomerDirectory
         foreach ($rows as &$row) {
             $row['id'] = (int)$row['id'];
             $row['record_count'] = (int)$row['record_count'];
-            $row['created_jalali'] = jdatetime((string)$row['created_at'], 'Y/m/d');
+            $row['created_display'] = jdatetime((string)$row['created_at'], 'Y/m/d');
+            $row['created_jalali'] = $row['created_display']; // Legacy AJAX compatibility.
         }
         unset($row);
         return compact('rows', 'total', 'page', 'pages', 'perPage', 'q');
@@ -97,12 +98,12 @@ final class CustomerDirectory
         </div></section>
         <section class="card" id="customer-list">
           <div class="table-responsive"><table class="table table-vcenter card-table">
-            <thead><tr><th>شناسه</th><th>نام مشتری</th><th>شماره موبایل</th><th>تعداد رکوردها</th><th>تاریخ ثبت (شمسی)</th></tr></thead>
+            <thead><tr><th>شناسه</th><th>نام مشتری</th><th>شماره موبایل</th><th>تعداد رکوردها</th><th>تاریخ ثبت (<?=date_display_mode()==='jalali'?'شمسی':'میلادی'?>)</th></tr></thead>
             <tbody id="customer-rows">
             <?php foreach ($result['rows'] as $row): ?>
             <tr><td class="text-secondary">#<?=e((string)$row['id'])?></td><td><?=e((string)$row['full_name'])?></td>
               <td class="ltr-input"><?=e((string)($row['mobile'] ?: '—'))?></td>
-              <td><?=e((string)$row['record_count'])?></td><td><?=e($row['created_jalali'])?></td></tr>
+              <td><?=e((string)$row['record_count'])?></td><td><?=e($row['created_display'])?></td></tr>
             <?php endforeach; ?>
             </tbody>
           </table></div>
