@@ -52,6 +52,7 @@ try {
     return {
       marginRight: getComputedStyle(wrapper).marginRight,
       sidebarWidth: sidebar.getBoundingClientRect().width,
+      sidebarLeft: sidebar.getBoundingClientRect().left,
       wrapperRight: wrapper.getBoundingClientRect().right,
       width: window.innerWidth,
       tablerModal: typeof window.tabler?.Modal,
@@ -62,8 +63,10 @@ try {
   assert.ok(dimensions.wrapperRight < dimensions.width - 200 &&
     dimensions.wrapperRight > dimensions.width - 330,
     'Main content should start directly next to the sidebar (no 15rem extra gap)');
-  assert.ok(dimensions.sidebarWidth >= 240 && dimensions.sidebarWidth <= 260,
-    'Sidebar remains 250px wide');
+  assert.ok(Math.abs(dimensions.sidebarWidth - 250) < 1,
+    'Sidebar width matches the reserved 250px exactly');
+  assert.ok(Math.abs(dimensions.wrapperRight - dimensions.sidebarLeft) < 1,
+    'No unintended gap remains between main content and the right sidebar');
   assert.equal(dimensions.tablerModal, 'function',
     'The local Tabler bundle exposes the Modal class as tabler.Modal');
   console.log('[browser] desktop RTL margin-right and sidebar alignment passed', dimensions);
