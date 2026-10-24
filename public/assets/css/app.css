@@ -70,7 +70,38 @@ button, input, select, textarea, .btn { font-family: inherit; }
 #import-preview .table th { background: #f1f5fc; }
 [data-hcg-select] { min-height: 38px; }
 .persian-datepicker-container { z-index: 2100 !important; }
-.modal-dialog-scrollable .modal-body { overflow-x: visible; }
+/* The form is nested inside .modal-content. Without its own flex layout,
+   Bootstrap clips the tall form before the footer, making Save unreachable.
+   Keep action buttons fixed inside the modal and scroll only form contents. */
+.modal-dialog-scrollable .modal-content > form {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: 100%;
+}
+.modal-dialog-scrollable .modal-content > form > .modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+}
+.modal-dialog-scrollable .modal-content > form > .modal-header,
+.modal-dialog-scrollable .modal-content > form > .modal-footer {
+  flex: 0 0 auto;
+}
+.record-modal-dialog .modal-content {
+  max-height: calc(100dvh - 2rem);
+}
+.record-modal-dialog #record-form {
+  max-height: calc(100dvh - 2rem);
+}
+@media (max-width: 575.98px) {
+  .record-modal-dialog .modal-content,
+  .record-modal-dialog #record-form {
+    max-height: calc(100dvh - 1rem);
+  }
+}
 @media (max-width: 576px) {
   .record-control { flex: 0 0 100%; max-width: 100%; }
   .card .card-header, .card .card-body { padding: 1rem; }
