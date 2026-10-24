@@ -84,9 +84,9 @@ final class RecordManager
     }
 
     /** A single calendar policy for HTML, XLSX, PDF and live AJAX dates. */
-    public static function dateLabel(?string $iso): string
+    public static function dateLabel(?string $iso, ?int $fieldId = null, string $fieldKey = ''): string
     {
-        return display_date($iso);
+        return display_date($iso, $fieldId, $fieldKey);
     }
 
     public function migrate(): void
