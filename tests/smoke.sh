@@ -129,7 +129,40 @@ node tests/modal_browser.mjs "$BASE"
 # Run extra PDF fixture creation after the UI suite so its search-count
 # assertions still target the original two 'card-' regression records.
 php tests/apple_id_card_pdf_integration.php
+
+# The Chromium suite just saved a real sanitized commitment and editor mode.
+curl -fsS -b "$COOKIE" -c "$COOKIE" "$BASE/index.php?route=reports_commitment" >"$TMP"
+grep -q 'id="apple-card-search"' "$TMP"
+grep -q 'data-report-kind="commitment"' "$TMP"
+CM_CSRF="$(grep -oP 'name="_csrf" value="\K[^"]+' "$TMP" | head -1)"
+CM_ID="$(php -r 'require "src/common.php"; echo db()->query("SELECT MAX(r.id) FROM ".table("apple_records")." r LEFT JOIN ".table("record_deletions")." d ON d.record_id=r.id WHERE d.record_id IS NULL")->fetchColumn();')"
+CM_PDF="$(mktemp --suffix=.pdf)"
+CM_HEADER="$(mktemp)"
+curl -fsS -b "$COOKIE" -c "$COOKIE" -D "$CM_HEADER" -o "$CM_PDF" \
+  --data-urlencode "_csrf=$CM_CSRF" --data-urlencode "record_id=$CM_ID" \
+  --data-urlencode 'include_sensitive=0' \
+  "$BASE/index.php?route=reports_commitment_pdf"
+grep -qi 'Content-Type: application/pdf' "$CM_HEADER"
+grep -qi "commitment-$CM_ID.pdf" "$CM_HEADER"
+test "$(head -c 5 "$CM_PDF")" = '%PDF-'
+pdfinfo "$CM_PDF" | grep -q 'Page size: *595.2.*x 841.8.*pts'
+pdftotext -enc UTF-8 "$CM_PDF" "$TMP"
+grep -q 'تعهدنامه مرورگر' "$TMP"
+CM_GET="$(curl -sS -o /dev/null -w '%{http_code}' -b "$COOKIE" \
+  "$BASE/index.php?route=reports_commitment_pdf")"
+test "$CM_GET" = '405'
+CM_CSRF_STATUS="$(curl -sS -o /dev/null -w '%{http_code}' -b "$COOKIE" \
+  --data-urlencode "record_id=$CM_ID" "$BASE/index.php?route=reports_commitment_pdf")"
+test "$CM_CSRF_STATUS" = '419'
+CM_UNAUTH="$(curl -sS -o "$TMP" -w '%{http_code}' \
+  --data-urlencode "record_id=$CM_ID" --data-urlencode "_csrf=$CM_CSRF" \
+  "$BASE/index.php?route=reports_commitment_pdf")"
+test "$CM_UNAUTH" != '200'
+rm -f "$CM_PDF" "$CM_HEADER"
+echo '[smoke] commitment A4 download, same card, saved Persian editor text, authentication, POST and CSRF: PASS'
+
 php tests/date_display_integration.php
+php tests/commitment_integration.php
 
 
 TOKEN="$(grep -oP 'name="_csrf" value="\K[^"]+' "$TMP" | head -1)"
