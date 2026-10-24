@@ -83,14 +83,10 @@ final class RecordManager
         return sprintf('%04d-%02d-%02d', $gy, $gm, $gd);
     }
 
+    /** A single calendar policy for HTML, XLSX, PDF and live AJAX dates. */
     public static function dateLabel(?string $iso): string
     {
-        if (!$iso) return '';
-        require_once __DIR__ . '/vendor/jdf.php';
-        $p = explode('-', substr($iso, 0, 10));
-        if (count($p) !== 3) return '';
-        [$y,$m,$d] = gregorian_to_jalali((int)$p[0], (int)$p[1], (int)$p[2]);
-        return sprintf('%04d/%02d/%02d', $y, $m, $d);
+        return display_date($iso);
     }
 
     public function migrate(): void
