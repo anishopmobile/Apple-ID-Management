@@ -97,6 +97,10 @@ curl -fsS -b "$COOKIE" -c "$COOKIE" -D "$PDF_HEADERS" -o "$PDF_OUT" \
   --data-urlencode "_csrf=$PDF_CSRF" --data-urlencode "record_id=$CARD_ID" \
   --data-urlencode 'include_sensitive=0' \
   "$BASE/index.php?route=reports_apple_id_card_pdf"
+echo '[smoke pdf diagnostics] HTTP response headers:'
+grep -Ei 'HTTP/|Content-Type:|Content-Disposition:|Content-Length:' "$PDF_HEADERS" || true
+echo '[smoke pdf diagnostics] measured PDF size:'
+pdfinfo -box "$PDF_OUT" | grep -E 'Pages:|Page size:|MediaBox:' || true
 grep -qi 'Content-Type: application/pdf' "$PDF_HEADERS"
 grep -qi "account-card-$CARD_ID.pdf" "$PDF_HEADERS"
 test "$(head -c 5 "$PDF_OUT")" = '%PDF-'
