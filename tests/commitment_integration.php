@@ -52,6 +52,17 @@ try {
     commit_check(str_contains($sanitized,'<h2>') && str_contains($sanitized,'<strong>'),
         'safe headings and bold are retained');
     commit_check(setting('commitment_editor_mode')==='advanced','editor mode persisted');
+    // Brand image must come from the private application setting, not a
+    // public/temporary user-controlled URL.
+    $brand=STORAGE_PATH.'/branding';
+    if(!is_dir($brand)) mkdir($brand,0700,true);
+    $newLogo='logo-'.bin2hex(random_bytes(16)).'.png';
+    $png=imagecreatetruecolor(96,60);
+    imagefilledrectangle($png,0,0,95,59,imagecolorallocate($png,13,64,137));
+    imagepng($png,$brand.'/'.$newLogo);
+    imagedestroy($png);
+    db()->prepare('INSERT INTO '.table('settings').'(name,value) VALUES (?,?)
+      ON DUPLICATE KEY UPDATE value=VALUES(value)')->execute(['site_logo',$newLogo]);
     $pdf=(new CommitmentPdf())->generate((int)$record,false);
     commit_check(str_starts_with($pdf,'%PDF-')&&strlen($pdf)>10000,'A4 PDF is real');
     $folder=sys_get_temp_dir().'/commitment-'.bin2hex(random_bytes(6));
@@ -73,6 +84,9 @@ try {
         commit_check(str_contains($text,'ACCOUNT CARD') && str_contains($text,'تعهدنامه'),
             'original Apple ID card and saved Persian commitment are present in A4');
         commit_check(!str_contains($text,'EVIL_MARKER'),'malicious editor text is never printed');
+        $images=[];$code=0;
+        exec('pdfimages -list '.escapeshellarg($path).' 2>&1',$images,$code);
+        commit_check($code===0 && count($images)>2,'private site logo embedded into A4 PDF');
         $fonts=[];exec('pdffonts '.escapeshellarg($path),$fonts,$rc);
         commit_check($rc===0 && str_contains(implode("\n",$fonts),'yes'),
             'A4 PDF embeds fonts');
@@ -94,7 +108,16 @@ try {
     commit_reject(fn()=> (new CommitmentPdf())->generate((int)$record,false),
         'an unconfigured legal text cannot silently generate a fabricated agreement');
     echo "[commitment] persisted HTML + editor mode, XSS stripping, A4 portrait with original card, Persian text, embedded fonts, render: PASS\n";
-} finally {
+ } finally {
+    if(isset($newLogo)) {
+        @unlink(STORAGE_PATH.'/branding/'.$newLogo);
+        if($oldLogo==='') {
+            db()->prepare('DELETE FROM '.table('settings').' WHERE name=?')->execute(['site_logo']);
+        } else {
+            db()->prepare('INSERT INTO '.table('settings').'(name,value) VALUES (?,?)
+              ON DUPLICATE KEY UPDATE value=VALUES(value)')->execute(['site_logo',$oldLogo]);
+        }
+    }
     $settings->updateCommitment($oldHtml,in_array($oldMode,['simple','advanced'],true)?$oldMode:'simple');
     $previous=json_decode($oldDates,true);
     $settings->updateDatePreferences('jalali',array_map('strval',is_array($previous)?$previous:[]));
