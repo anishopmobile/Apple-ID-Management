@@ -105,7 +105,7 @@ final class SiteSettings
         $actual=(new finfo(FILEINFO_MIME_TYPE))->file($path);
         $allowed=['image/png'=>'png','image/jpeg'=>'jpg','image/webp'=>'webp'];
         if (!isset($allowed[$actual]) || !in_array($info[2],[IMAGETYPE_PNG,IMAGETYPE_JPEG,IMAGETYPE_WEBP],true) ||
-            $allowed[$actual]!==$allowed[image_type_to_mime_type($info[2])]??null) {
+            $allowed[$actual] !== ($allowed[image_type_to_mime_type($info[2])] ?? null)) {
             throw new DomainException('فقط تصویر واقعی PNG، JPEG یا WebP برای لوگو مجاز است.');
         }
         $folder=STORAGE_PATH.'/branding';
