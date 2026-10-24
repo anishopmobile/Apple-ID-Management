@@ -197,7 +197,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (typeof window.jQuery === 'function' && typeof window.jQuery.fn.persianDatepicker === 'function') {
         try {
           const fieldId = String(field.dataset.dateFieldId ||
-            field.name.match(/\\[(\\d+)\\]/)?.[1] || field.id.replace(/^value-/,''));
+            field.name.split('[')[1]?.split(']')[0] || field.id.replace(/^value-/,''));
           const gregorian = document.body.dataset.dateMode === 'gregorian' &&
             !(document.body.dataset.dateExemptIds || '').split(',').includes(fieldId);
           window.jQuery(field).persianDatepicker({
