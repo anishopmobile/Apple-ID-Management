@@ -194,7 +194,7 @@ try {
     return info.includes('صفحه 1 از') &&
       document.querySelectorAll('#apple-card-rows tr[data-record-id]').length === 25;
   });
-  await page.locator('#apple-card-pages button[data-card-page="2"]').click();
+  await page.locator('#apple-card-pages').getByRole('button', {name:'2',exact:true}).click();
   await page.waitForFunction(() =>
     document.querySelector('#apple-card-page-info')?.textContent?.includes('صفحه 2 از')
   );
