@@ -247,7 +247,7 @@ try {
         <?php if ($route === 'records'): ?><script src="/assets/js/records-grid.js" defer></script><?php endif; ?>
         <?php endif; ?>
         <meta name="csrf-token" content="<?=e(csrf())?>">
-        </head><body class="theme-light">
+        </head><body class="theme-light" data-date-mode="<?=e(date_display_mode())?>">
         <div class="page app-shell">
         <aside class="navbar navbar-vertical navbar-expand-lg app-sidebar" data-bs-theme="dark">
           <div class="container-fluid">
@@ -338,7 +338,7 @@ try {
           <div class="col-12"><section class="card"><div class="card-header"><div><h3 class="card-title">روند ثبت اطلاعات و مشتریان</h3><div class="text-secondary small mt-1">آمار روزانه، ۱۴ روز اخیر</div></div></div>
             <div class="card-body"><div id="dashboard-chart" class="dashboard-chart" aria-label="نمودار خطی اطلاعات و مشتریان" data-labels="<?= e(json_encode($labels, JSON_UNESCAPED_UNICODE)) ?>" data-records="<?= e(json_encode($recordPoints)) ?>" data-customers="<?= e(json_encode($customerPoints)) ?>"></div></div></section></div>
           <div class="col-12"><section class="card"><div class="card-header"><h3 class="card-title">آخرین اطلاعات ثبت‌شده (۶ رکورد آخر)</h3><span class="badge bg-blue-lt text-blue me-auto">جدیدترین‌ها</span></div>
-            <div class="table-responsive"><table class="table table-vcenter card-table"><thead><tr><th>شناسه</th><th>مشتری</th><th>Apple ID</th><th>تاریخ ثبت (شمسی)</th><th>وضعیت</th></tr></thead><tbody>
+            <div class="table-responsive"><table class="table table-vcenter card-table"><thead><tr><th>شناسه</th><th>مشتری</th><th>Apple ID</th><th>تاریخ ثبت (<?=date_display_mode()==='jalali'?'شمسی':'میلادی'?>)</th><th>وضعیت</th></tr></thead><tbody>
             <?php foreach ($recent as $item): ?><tr data-dashboard-recent-record="<?= e((string)$item['id']) ?>"><td class="text-secondary">#<?= e((string)$item['id']) ?></td><td><?= e($item['full_name']) ?></td><td dir="ltr" class="text-start"><?= e($item['apple_email'] ?: '—') ?></td><td><?= e(jdatetime($item['created_at'])) ?></td><td><span class="badge bg-green-lt text-green">ثبت‌شده</span></td></tr><?php endforeach; ?>
             <?php if (!$recent): ?><tr><td colspan="5" class="text-center text-secondary empty-row">هنوز اطلاعاتی ثبت نشده است؛ پس از فعال‌سازی فرم ثبت، داده‌ها اینجا نمایش داده می‌شوند.</td></tr><?php endif; ?>
             </tbody></table></div>
