@@ -4,6 +4,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const table = document.getElementById('apple-card-table');
   if (!table) return;
 
+  const apiRoute=table.dataset.reportApi || 'reports_apple_id_card_api';
+  const pageRoute=table.dataset.reportPage || 'reports_apple_id_card';
   const query = document.getElementById('apple-card-search');
   const perPage = document.getElementById('apple-card-page-size');
   const rows = document.getElementById('apple-card-rows');
@@ -85,7 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function urlParams(route = 'reports_apple_id_card_api') {
+  function urlParams(route = apiRoute) {
     const args = new URLSearchParams({
       route,
       q: query.value,
@@ -137,7 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
       status.textContent = result.total + ' رکورد مطابق جستجو پیدا شد.';
       renderSort();
       renderPages();
-      history.replaceState(null, '', '/index.php?' + urlParams('reports_apple_id_card'));
+      history.replaceState(null, '', '/index.php?' + urlParams(pageRoute));
     } catch (error) {
       if (error.name !== 'AbortError' && current === serial) {
         status.textContent = error.message || 'ارتباط با سرور برقرار نشد.';
