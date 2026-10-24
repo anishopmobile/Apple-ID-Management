@@ -84,17 +84,49 @@ function connect_db(array $settings): PDO {
     ]);
     return $pdo;
 }
-function jdatetime(?string $utc, string $format = 'Y/m/d H:i'): string {
-    if (!$utc) { return '—'; }
+/**
+ * Date preference is a display-only choice: database DATE values remain
+ * canonical Gregorian ISO. The optional override keeps same-request updates
+ * and integration tests consistent; a fresh request reads the saved setting.
+ */
+function date_display_mode(?string $override = null): string {
+    static $mode = null;
+    if ($override !== null) {
+        if (!in_array($override, ['jalali', 'gregorian'], true)) throw new InvalidArgumentException('نوع تقویم نامعتبر است.');
+        $mode = $override;
+    }
+    if ($mode === null) {
+        $saved = setting('date_display_mode','jalali');
+        $mode = in_array($saved,['jalali','gregorian'],true) ? $saved : 'jalali';
+    }
+    return $mode;
+}
+/** Format a date-only ISO column without timezone shifts. */
+function display_date(?string $iso): string {
+    if ($iso === null || $iso === '') return '';
+    $part = substr($iso,0,10);
+    if (!preg_match('/^([0-9]{4})-([0-9]{2})-([0-9]{2})$/D',$part,$m) ||
+        !checkdate((int)$m[2],(int)$m[3],(int)$m[1])) return '';
+    if (date_display_mode()==='gregorian') return str_replace('-','/',$part);
     require_once ROOT_PATH . '/src/vendor/jdf.php';
+    [$jy,$jm,$jd] = gregorian_to_jalali((int)$m[1],(int)$m[2],(int)$m[3]);
+    return sprintf('%04d/%02d/%02d',$jy,$jm,$jd);
+}
+/** Format a stored UTC datetime in the application's timezone & calendar. */
+function jdatetime(?string $utc, string $format = 'Y/m/d H:i'): string {
+    if (!$utc) return '—';
     try {
-        $dt = new DateTimeImmutable($utc, new DateTimeZone('UTC'));
-        return jdate($format, $dt->getTimestamp(), '', config()['APP_TZ'], 'fa');
+        $dt = (new DateTimeImmutable($utc,new DateTimeZone('UTC')))
+            ->setTimezone(new DateTimeZone(config()['APP_TZ']));
+        if (date_display_mode()==='gregorian') return $dt->format($format);
+        require_once ROOT_PATH . '/src/vendor/jdf.php';
+        return jdate($format,$dt->getTimestamp(),'',$dt->getTimezone()->getName(),'fa');
     } catch (Throwable $exception) { return '—'; }
 }
 function local_today(): string {
+    if (date_display_mode()==='gregorian') return date('Y/m/d');
     require_once ROOT_PATH . '/src/vendor/jdf.php';
-    return jdate('Y/m/d', time(), '', config()['APP_TZ'], 'fa');
+    return jdate('Y/m/d',time(),'',config()['APP_TZ'],'fa');
 }
 function cookie_options(int $expires): array {
     $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (int)($_SERVER['SERVER_PORT'] ?? 0) === 443;
