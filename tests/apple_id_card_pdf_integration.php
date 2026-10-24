@@ -91,7 +91,7 @@ try {
         card_pdf_assert(preg_match('/^Page size:\s+([\d.]+)\s+x\s+([\d.]+)\s+pts/m',$text,$m)===1,
             $kind.' readable page size');
         card_pdf_assert(abs((float)$m[1]-85*72/25.4)<0.2 && abs((float)$m[2]-55*72/25.4)<0.2,
-            $kind.' exactly 85x55mm ±0.1mm');
+            $kind.' exactly 85x55mm ±0.1mm, got '.(string)$m[1].'x'.(string)$m[2].' pt; '.preg_replace('/\\s+/',' ', $text));
         $extracted=$folder.'/'.$kind.'.txt';
         exec('pdftotext -enc UTF-8 '.escapeshellarg($folder.'/'.$kind.'.pdf').' '.escapeshellarg($extracted),$unused,$code);
         card_pdf_assert($code===0 && is_file($extracted),'text extractable from '.$kind);
