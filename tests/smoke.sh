@@ -75,6 +75,8 @@ grep -q 'ایجاد رکورد جدید' "$TMP"
 grep -q 'ورود از اکسل' "$TMP"
 grep -q 'خروجی اکسل' "$TMP"
 echo '[smoke] dynamic record field pages and server integration passed'
+node tests/modal_browser.mjs "$BASE"
+
 
 TOKEN="$(grep -oP 'name="_csrf" value="\K[^"]+' "$TMP" | head -1)"
 curl -sS -b "$COOKIE" -c "$COOKIE" --data-urlencode "_csrf=$TOKEN" \
