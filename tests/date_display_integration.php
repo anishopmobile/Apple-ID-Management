@@ -20,8 +20,12 @@ $service=new SiteSettings();
 $manager=new RecordManager(db(),config()['DB_PREFIX']);
 $manager->migrate();
 $before=setting('date_display_mode','jalali');
-$clean=static function()use($service,$before):void {
-    $service->updateDateMode(in_array($before,['jalali','gregorian'],true)?$before:'jalali');
+$beforeExceptions=date_jalali_exempt_ids();
+$clean=static function()use($service,$before,$beforeExceptions):void {
+    $service->updateDatePreferences(
+        in_array($before,['jalali','gregorian'],true)?$before:'jalali',
+        array_map('strval',$beforeExceptions)
+    );
 };
 $sample='2026-10-24';
 $expectedJalali='1405/08/02';
@@ -33,7 +37,7 @@ $card=new AppleIdCardPdf($manager);
 $fields=$manager->fields();
 $dateField=array_values(array_filter($fields,static fn($f)=>$f['type']==='date' && $f['field_key']!=='created_at'));
 cal_check(count($dateField)>=1,'A real dynamic date field is configured');
-$dateFieldId=(int)$dateField[0]['id'];
+
 // Pick an existing record with a real birthday/date; test fixtures created
 // previously are stored in the temporary MySQL database only.
 $q=db()->prepare('SELECT v.record_id FROM '.table('record_values').' v
@@ -44,6 +48,18 @@ $q->execute([$sample]);
 $recordId=$q->fetchColumn();
 cal_check($recordId!==false,'fixture with Gregorian ISO date in MySQL');
 $recordId=(int)$recordId;
+$createdField = array_values(array_filter($fields,static fn($f)=>$f['field_key']==='created_at'))[0]??null;
+cal_check($createdField!==null,'system creation date exists');
+$createdId=(int)$createdField['id'];
+$matchingDates=db()->prepare('SELECT v.field_id FROM '.table('record_values').' v
+ JOIN '.table('record_fields').' f ON f.id=v.field_id
+ WHERE v.record_id=? AND v.value_date=? AND f.type=\'date\' AND f.deleted_at IS NULL LIMIT 1');
+$matchingDates->execute([$recordId,$sample]);
+$exemptId=(int)$matchingDates->fetchColumn();
+cal_check($exemptId>0,'actual date value stored under an active field ID');
+$exemptField=array_values(array_filter($fields,static fn($f)=>(int)$f['id']===$exemptId))[0]??null;
+cal_check($exemptField!==null,'date field metadata found');
+
 
 // Ensure both XLSX exporters include the stored date under either calendar.
 $validateSheet=static function(string $file,string $expected)use($sample):void {
@@ -105,6 +121,79 @@ try {
                 'card PDF birthday uses '.$mode.' calendar');
         }
     }
+
+    // Gregorian global mode with a date-specific Jalali override.
+    $options=$service->dateFields();
+    cal_check(count($options)>=2,'settings shows system date and custom date fields');
+    cal_check(count(array_filter($options,static fn($f)=>$f['field_key']==='created_at'))===1,
+        'system created_at offered as permanently protected option');
+    cal_reject(fn()=> $service->updateDatePreferences('gregorian',['9999999999']),
+        'unknown date field identifier is rejected');
+    cal_reject(fn()=> $service->updateDatePreferences('gregorian',[strval((int)$fields[1]['id'])]),
+        'non-date field cannot be exempt');
+    cal_reject(fn()=> $service->updateDatePreferences('gregorian',['1 OR 1=1']),
+        'field identifier injection is rejected');
+    cal_check(setting('date_jalali_exempt_ids','[]')==='[]',
+        'invalid exception submit leaves previously saved setting intact');
+    $service->updateDatePreferences('gregorian',[strval($exemptId)]);
+    cal_check(date_display_mode()==='gregorian','global Gregorian setting maintained');
+    cal_check(date_jalali_exempt_ids()===[$exemptId],'valid date ID selected');
+    cal_check(RecordManager::dateLabel($sample,$exemptId)===$expectedJalali,
+        'Jalali override for individual date field');
+    cal_check(RecordManager::dateLabel($sample,$createdId,'created_at')===$expectedJalali,
+        'system record creation date always Jalali');
+    cal_check(display_date($sample)===$expectedGregorian,
+        'unexempted date uses Gregorian');
+    cal_check(RecordManager::digits(jdatetime($sample.' 12:00:00','Y/m/d',true))===$expectedJalali,
+        'system customer and dashboard registration date always Jalali');
+
+    $fieldOnly=$export->create([$createdId,$exemptId]);
+    try {
+        $read=new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
+        $book=$read->load($fieldOnly['file']);
+        $sheet=$book->getActiveSheet();
+        cal_check((string)$sheet->getCell('A1')->getValue()===$createdField['label'],
+            'Excel date creation field column preserved');
+        cal_check((string)$sheet->getCell('B1')->getValue()===$exemptField['label'],
+            'Excel exception date field column preserved');
+        $found=false;
+        for($row=2;$row<=$sheet->getHighestDataRow();$row++){
+            if((string)$sheet->getCell('B'.$row)->getValue()===$expectedJalali){
+                $found=true;break;
+            }
+        }
+        cal_check($found,'customer XLSX exports exempted date as Jalali');
+        $book->disconnectWorksheets();
+    } finally {@unlink($fieldOnly['file']);}
+    $allXlsx=$excel->exportAll();
+    try {
+        $read=new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
+        $book=$read->load($allXlsx);
+        $sheet=$book->getActiveSheet();
+        $col=null;
+        for($n=1;$n<=\PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($sheet->getHighestDataColumn());$n++){
+            if((string)$sheet->getCell([$n,1])->getValue()===$exemptField['label']){
+                $col=\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($n);break;
+            }
+        }
+        cal_check($col!==null,'record XLSX includes date exception field');
+        $found=false;
+        for($row=2;$row<=$sheet->getHighestDataRow();$row++){
+            if((string)$sheet->getCell($col.$row)->getValue()===$expectedJalali){$found=true;break;}
+        }
+        cal_check($found,'record XLSX exports exempted date as Jalali');
+        $book->disconnectWorksheets();
+    } finally {@unlink($allXlsx);}
+
+    // Removing the exception restores the Gregorian rendering without
+    // altering the canonical MySQL DATE values for that record.
+    $service->updateDatePreferences('gregorian',[]);
+    cal_check(RecordManager::dateLabel($sample,$exemptId)===$expectedGregorian,
+        'unchecking restores global calendar');
+    cal_check(RecordManager::dateLabel($sample,$createdId,'created_at')===$expectedJalali,
+        'created_at remains Jalali even when no exceptions are checked');
+    cal_check($manager->record($recordId)['values'][$exemptId]===$sample,
+        'changing exceptions does not mutate stored ISO date');
 
     $service->updateDateMode('gregorian');
     cal_check(display_date('2024-02-29')==='2024/02/29','Gregorian leap day');
