@@ -26,9 +26,13 @@ document.addEventListener('DOMContentLoaded', () => {
       if (/^\d{4}-\d\d-\d\d$/.test(text)) {
         const date=new Date(text+'T12:00:00Z');
         if (!Number.isNaN(date.getTime())) {
-          text=new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
-            year:'numeric',month:'2-digit',day:'2-digit',timeZone:'UTC'
-          }).format(date).replaceAll('‏','').replaceAll(' ','');
+          if (document.body.dataset.dateMode === 'gregorian') {
+            text = text.replaceAll('-', '/');
+          } else {
+            text=new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
+              year:'numeric',month:'2-digit',day:'2-digit',timeZone:'UTC'
+            }).format(date).replaceAll('‏','').replaceAll(' ','');
+          }
         }
       }
     } else if (field.type==='boolean') text=String(input)==='1'?'بله':'خیر';
