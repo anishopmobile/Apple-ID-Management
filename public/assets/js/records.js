@@ -160,7 +160,7 @@ document.addEventListener('DOMContentLoaded', () => {
           for (const [id,value] of Object.entries(result.record.values)) {
             const input = recordForm.elements.namedItem('v['+id+']');
             if (!input) continue;
-            input.value = input.hasAttribute('data-jalali-date') ? toJalali(value) : (value ?? '');
+            input.value = input.hasAttribute('data-jalali-date') ? (document.body.dataset.dateMode === 'gregorian' ? String(value || '').replaceAll('-', '/') : toJalali(value)) : (value ?? '');
           }
           document.getElementById('record-modal-title').textContent = 'ویرایش رکورد شماره ' + result.record.id;
           resetErrors(recordForm);
