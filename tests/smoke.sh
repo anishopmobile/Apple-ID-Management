@@ -65,6 +65,16 @@ grep -q 'id="dashboard-chart"' "$TMP"
 grep -q 'آنی شاپ' "$TMP"
 grep -q 'مشتریان' "$TMP"
 echo '[smoke] login, remember cookie and authenticated dashboard passed'
+
+php tests/records_integration.php
+curl -fsS -b "$COOKIE" -c "$COOKIE" "$BASE/index.php?route=records_fields" >"$TMP"
+grep -q 'ایجاد فیلد جدید' "$TMP"
+grep -q 'فیلد تست' "$TMP"
+curl -fsS -b "$COOKIE" -c "$COOKIE" "$BASE/index.php?route=records" >"$TMP"
+grep -q 'ایجاد رکورد جدید' "$TMP"
+grep -q 'ورود از اکسل' "$TMP"
+grep -q 'خروجی اکسل' "$TMP"
+echo '[smoke] dynamic record field pages and server integration passed'
 TOKEN="$(grep -oP 'name="_csrf" value="\K[^"]+' "$TMP" | head -1)"
 curl -sS -b "$COOKIE" -c "$COOKIE" -D "$HEAD" -o /dev/null \
   --data-urlencode "_csrf=$TOKEN" "$BASE/index.php?route=logout"
