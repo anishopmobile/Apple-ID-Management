@@ -232,7 +232,7 @@ try {
         <script src="/assets/js/customers-export.js?v=<?=e((string)filemtime(__DIR__ . '/assets/js/customers-export.js'))?>" defer></script>
         <?php endif; ?>
         <?php if ($route === 'customers'): ?>
-        <script src="/assets/js/customers.js" defer></script>
+        <script src="/assets/js/customers.js?v=<?=e((string)filemtime(__DIR__ . '/assets/js/customers.js'))?>" defer></script>
         <?php elseif ($route === 'backup'): ?>
         <script src="/assets/js/backup.js" defer></script>
         <?php endif; ?>
@@ -243,8 +243,8 @@ try {
         <script src="/assets/vendor/persian-date/persian-date.min.js" defer></script>
         <script src="/assets/vendor/persian-datepicker/persian-datepicker.min.js" defer></script>
         <script src="/assets/vendor/hcg/hcg-select.js" defer></script>
-        <script src="/assets/js/records.js" defer></script>
-        <?php if ($route === 'records'): ?><script src="/assets/js/records-grid.js" defer></script><?php endif; ?>
+        <script src="/assets/js/records.js?v=<?=e((string)filemtime(__DIR__ . '/assets/js/records.js'))?>" defer></script>
+        <?php if ($route === 'records'): ?><script src="/assets/js/records-grid.js?v=<?=e((string)filemtime(__DIR__ . '/assets/js/records-grid.js'))?>" defer></script><?php endif; ?>
         <?php endif; ?>
         <meta name="csrf-token" content="<?=e(csrf())?>">
         </head><body class="theme-light" data-date-mode="<?=e(date_display_mode())?>">
