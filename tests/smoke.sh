@@ -70,6 +70,7 @@ php tests/records_integration.php
 php tests/customers_backup_integration.php
 php tests/customer_export_settings.php
 php tests/apple_id_card_integration.php
+php tests/apple_id_card_pdf_integration.php
 
 curl -fsS -b "$COOKIE" -c "$COOKIE" "$BASE/index.php?route=records_fields" >"$TMP"
 grep -q 'ایجاد فیلد جدید' "$TMP"
