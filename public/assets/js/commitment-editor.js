@@ -31,11 +31,15 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   mode.addEventListener('change',()=>{
     const current=editor.get('commitment-html');
-    if(current){ current.save(); current.remove(); }
+    if(current) {
+      if(current.initialized) textarea.value=current.getContent({format:'html'});
+      current.remove();
+    }
     init();
   });
   form.addEventListener('submit',()=>{
-    editor.get('commitment-html')?.save();
+    const instance=editor.get('commitment-html');
+    if (instance?.initialized) textarea.value=instance.getContent({format:'html'});
   });
   init();
 });
