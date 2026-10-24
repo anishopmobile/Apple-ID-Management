@@ -38,7 +38,22 @@ button, input, select, textarea, .btn { font-family: inherit; }
 .step.is-active { color: #1d4ed8; background: #e5edff; }
 .step span { margin-inline-start: 6px; }
 .alert { line-height: 2; }
-@media (min-width: 992px) { .app-shell { padding-right: 250px; } .app-sidebar { position: fixed; right: 0; top: 0; bottom: 0; width: 250px; } }
+@media (min-width: 992px) {
+  .app-shell { padding-right: 250px; }
+  /* Match the actual sidebar width to the shell reservation. Tabler's
+     .navbar-vertical.navbar-expand-lg defaults to 15rem (240px). */
+  .app-shell > .navbar-vertical.app-sidebar {
+    position: fixed; right: 0; top: 0; bottom: 0; width: 250px;
+  }
+  /* Tabler already shifts a .page-wrapper by 15rem when it follows a
+     vertical navbar. Our shell allocates 250px for the sidebar, so leaving
+     Tabler's extra margin causes an unintended double right-hand gap.
+     Keep the sidebar allocation but cancel only the redundant margin. */
+  .app-shell > .navbar-expand-lg.navbar-vertical ~ .page-wrapper {
+    margin-right: 0;
+    margin-inline-start: 0;
+  }
+}
 @media (max-width: 991.98px) { .app-sidebar .navbar-brand { padding-inline: 12px; } .hide-small { display: none; } .app-sidebar .nav-link { margin-inline: 0; } }
 @media (max-width: 576px) { .metric-card .h1 { font-size: 2.1rem; } .step { font-size: 12px; padding: 10px 5px; } .page-body { padding-top: 1rem; } }
 

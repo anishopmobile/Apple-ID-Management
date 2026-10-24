@@ -2,10 +2,16 @@
 document.addEventListener('DOMContentLoaded', () => {
   const apiUrl = '/index.php?route=records_api';
   const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+  // Tabler 1.4 bundles Bootstrap components but exposes them as
+  // window.tabler, NOT window.bootstrap. Never load Bootstrap a second time:
+  // duplicate bundles register duplicate click/backdrop handlers.
   const modal = (id) => {
     const element = document.getElementById(id);
-    if (!element || !window.bootstrap?.Modal) throw new Error('اجزای محلی Tabler بارگذاری نشده‌اند.');
-    return window.bootstrap.Modal.getOrCreateInstance(element);
+    const Modal = window.tabler?.Modal;
+    if (!element || typeof Modal?.getOrCreateInstance !== 'function') {
+      throw new Error('امکان نمایش فرم وجود ندارد؛ فایل محلی Tabler را بررسی کنید.');
+    }
+    return Modal.getOrCreateInstance(element);
   };
   const resetErrors = (form) => {
     form.querySelectorAll('.field-error').forEach((el) => { el.textContent = ''; });

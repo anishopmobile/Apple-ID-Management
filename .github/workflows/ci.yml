@@ -40,6 +40,8 @@ jobs:
           node --check scripts/build-assets.mjs
           node --check public/assets/js/app.js
           node --check public/assets/js/setup.js
+          node --check public/assets/js/records.js
+          node --check tests/modal_browser.mjs
           node --check public/assets/vendor/hcg/hcg-select.js
       - name: PHP dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
@@ -50,6 +52,8 @@ jobs:
           test -s public/assets/vendor/tabler/tabler.rtl.min.css
           test -s public/assets/vendor/vazirmatn/Vazirmatn-Regular.woff2
           test -s storage/fonts/Vazirmatn-Regular.ttf
+      - name: Install Chromium for real UI regression checks
+        run: npx playwright install --with-deps chromium
       - name: Persian PDF and Excel output verification
         run: php tests/exports.php
       - name: End-to-end installation and authentication smoke
