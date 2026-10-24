@@ -159,8 +159,10 @@ try {
     (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($badBook))->save($temp);
     forbidden(fn()=> $excel->inspect($temp),'invalid XLSX header rejected');
     $badSheet->setCellValueExplicit('A1',$originalHeader,\PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
-    // Mobile is the third column of the system-defined default ordering.
-    $badSheet->setCellValueExplicit('C2','شماره نامعتبر',\PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+    // Derive the mobile position from stable metadata; display orders change.
+    $mobileIndex=array_search('mobile',array_column($active,'field_key'),true);
+    $mobileColumn=\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($mobileIndex+1);
+    $badSheet->setCellValueExplicit($mobileColumn.'2','شماره نامعتبر',\PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
     (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($badBook))->save($temp);
     $invalidPreview=$excel->inspect($temp);
     check(!empty($invalidPreview['errors']),'invalid Excel cell errors include its row');
@@ -169,8 +171,8 @@ try {
     forbidden(fn()=> $excel->commit($temp),'bad XLSX cannot be imported');
     check((int)db()->query('SELECT COUNT(*) FROM ' . table('apple_records'))->fetchColumn()===$countBefore,
         'bad import did not write partial records');
-    $badSheet->setCellValueExplicit('C2','09123456789',\PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
-    $badSheet->setCellValue('C2','=SUM(1,2)');
+    $badSheet->setCellValueExplicit($mobileColumn.'2','09123456789',\PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+    $badSheet->setCellValue($mobileColumn.'2','=SUM(1,2)');
     (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($badBook))->save($temp);
     $formulaPreview=$excel->inspect($temp);
     check(!empty($formulaPreview['errors']),'formula cells rejected');
