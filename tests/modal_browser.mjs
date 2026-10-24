@@ -203,9 +203,15 @@ try {
   const selfHosted=await page.evaluate(() => performance.getEntriesByType('resource').filter(r=>r.name.includes('hugerte')).map(x=>x.name));
   assert.ok(selfHosted.length>0 && selfHosted.every(url=>new URL(url).origin===new URL(base).origin),
     'All editor assets load only from this host');
-  await page.evaluate(() => (window.hugeRTE || window.hugerte).get('commitment-html')
-    .setContent('<h2>تعهدنامه مرورگر</h2><p><strong>آزمایش موفق</strong> چاپ PDF A4</p>'));
+  await page.evaluate(() => {
+    const editor=(window.hugeRTE || window.hugerte).get('commitment-html');
+    editor.setContent('<h2>تعهدنامه مرورگر</h2><p><strong>آزمایش موفق</strong> چاپ PDF A4</p>');
+    editor.save();
+  });
+  assert.match(await page.locator('#commitment-html').inputValue(),/تعهدنامه مرورگر/,
+    'editor.sync() transfers rich text into its textarea');
   await page.locator('#commitment-settings-form button[type=submit]').click();
+  console.log('[browser commitment save]', (await page.locator('.alert').allInnerTexts()).slice(0,2));
   assert.equal(await page.locator('#commitment-editor-mode').inputValue(),'advanced',
     'Editor complexity mode persists');
   const savedCommitment=await page.locator('#commitment-html').inputValue();
