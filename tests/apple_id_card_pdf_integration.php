@@ -122,11 +122,17 @@ try {
     // at physical print dimensions (about 1004x650 pixels).
     $pixels=[];$code=0;
     exec('pdftoppm -f 1 -l 1 -r 300 -singlefile -png '.
-        escapeshellarg($folder.'/full.pdf').' '.escapeshellarg($folder.'/rendered').' 2>&1',$pixels,$code);
+        escapeshellarg($folder.'/masked.pdf').' '.escapeshellarg($folder.'/rendered').' 2>&1',$pixels,$code);
     card_pdf_assert($code===0 && is_file($folder.'/rendered.png'),'card render succeeds at 300 DPI');
     $image=getimagesize($folder.'/rendered.png');
     card_pdf_assert(is_array($image) && abs($image[0]-1004)<=2 && abs($image[1]-650)<=2,
         '300dpi raster matches real 85x55mm print geometry');
+    // Store only the synthetic, password-masked raster for visual QA in CI.
+    // It is not placed under public/ and is not part of the deployment package.
+    if (getenv('CARD_PDF_VISUAL_PREVIEW') === '1') {
+        card_pdf_assert(copy($folder.'/rendered.png',STORAGE_PATH.'/card-preview-ci.png'),
+            'copy synthetic masked card preview for visual QA');
+    }
 } finally {
     foreach (glob($folder.'/*')?:[] as $file) @unlink($file);
     @rmdir($folder);
