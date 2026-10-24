@@ -182,11 +182,26 @@ try {
     layout_start($site, $heading, $route, $routes, $admin);
     if ($route === 'dashboard') {
         $customers = (int)db()->query('SELECT COUNT(*) FROM ' . table('customers'))->fetchColumn();
-        $records = (int)db()->query('SELECT COUNT(*) FROM ' . table('apple_records'))->fetchColumn();
-        $recent = db()->query('SELECT r.id,r.apple_email,r.created_at,c.full_name FROM ' . table('apple_records') . ' r JOIN ' . table('customers') . ' c ON c.id=r.customer_id ORDER BY r.id DESC LIMIT 8')->fetchAll();
+        $checkTombstones = db()->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name=?');
+        $checkTombstones->execute([config()['DB_PREFIX'] . 'record_deletions']);
+        $hasTombstones = (int)$checkTombstones->fetchColumn() > 0;
+        $records = $hasTombstones
+            ? (int)db()->query('SELECT COUNT(*) FROM ' . table('apple_records') . ' r LEFT JOIN ' . table('record_deletions') . ' d ON d.record_id=r.id WHERE d.record_id IS NULL')->fetchColumn()
+            : (int)db()->query('SELECT COUNT(*) FROM ' . table('apple_records'))->fetchColumn();
+        $recentSql = 'SELECT r.id,r.apple_email,r.created_at,c.full_name FROM ' . table('apple_records')
+            . ' r JOIN ' . table('customers') . ' c ON c.id=r.customer_id';
+        if ($hasTombstones) $recentSql .= ' LEFT JOIN ' . table('record_deletions') . ' d ON d.record_id=r.id WHERE d.record_id IS NULL';
+        $recent = db()->query($recentSql . ' ORDER BY r.id DESC LIMIT 8')->fetchAll();
         $series = [];
         foreach (['customers', 'apple_records'] as $key) {
-            $res = db()->query('SELECT DATE(created_at) AS d,COUNT(*) AS total FROM ' . table($key) . ' WHERE created_at >= DATE_SUB(UTC_DATE(), INTERVAL 13 DAY) GROUP BY DATE(created_at)')->fetchAll();
+            if ($key === 'apple_records' && $hasTombstones) {
+                $res = db()->query('SELECT DATE(r.created_at) AS d,COUNT(*) AS total FROM ' . table('apple_records')
+                    . ' r LEFT JOIN ' . table('record_deletions') . ' tomb ON tomb.record_id=r.id'
+                    . ' WHERE r.created_at >= DATE_SUB(UTC_DATE(), INTERVAL 13 DAY) AND tomb.record_id IS NULL'
+                    . ' GROUP BY DATE(r.created_at)')->fetchAll();
+            } else {
+                $res = db()->query('SELECT DATE(created_at) AS d,COUNT(*) AS total FROM ' . table($key) . ' WHERE created_at >= DATE_SUB(UTC_DATE(), INTERVAL 13 DAY) GROUP BY DATE(created_at)')->fetchAll();
+            }
             $series[$key] = array_column($res, 'total', 'd');
         }
         $labels = []; $customerPoints = []; $recordPoints = [];
