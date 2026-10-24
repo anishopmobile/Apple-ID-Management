@@ -83,8 +83,11 @@ try {
         $text=file_get_contents($extracted);
         commit_check(str_contains($text,'ACCOUNT CARD'),
             'imported original card text must be extractable; extracted: '.mb_substr($text,0,700));
-        commit_check(str_contains($text,'تعهدنامه'),
-            'sanitized Persian commitment must be extractable; extracted: '.mb_substr($text,0,700));
+        // mPDF stores contextual Arabic presentation forms for Persian glyphs.
+        // NFKC normalization returns their semantic Unicode letters for search.
+        $readable=\Normalizer::normalize($text,\Normalizer::FORM_KC);
+        commit_check(is_string($readable) && str_contains($readable,'تعهدنامه'),
+            'Persian agreement remains text-extractable after NFKC normalization');
         commit_check(!str_contains($text,'EVIL_MARKER'),'malicious editor text is never printed');
         $images=[];$code=0;
         exec('pdfimages -list '.escapeshellarg($path).' 2>&1',$images,$code);
