@@ -133,10 +133,11 @@ final class RecordManager
             ['apple_email', 'Apple ID', 'text', 3, 0, 1, 1, 0],
         ];
         $insert = $this->pdo->prepare("INSERT IGNORE INTO $f
-          (field_key,label,label_hash,type,sort_order,required,show_in_table,filterable,is_system)
-          VALUES (?,?,?,?,?,?,?,?,?)");
+          (field_key,label,label_hash,type,max_length,sort_order,required,show_in_table,filterable,is_system)
+          VALUES (?,?,?,?,?,?,?,?,?,?)");
         foreach ($defaults as [$key,$label,$type,$order,$required,$visible,$filter,$sys]) {
-            $insert->execute([$key,$label,hash('sha256', mb_strtolower($label)),$type,$order,$required,$visible,$filter,$sys]);
+            $insert->execute([$key,$label,hash('sha256', mb_strtolower($label)),$type,
+                $key === 'customer_name' ? 150 : 255,$order,$required,$visible,$filter,$sys]);
         }
         $this->syncLegacyMobiles();
     }
@@ -238,6 +239,9 @@ final class RecordManager
             $existing = $this->fieldById($id);
             if (!$existing) throw new DomainException('فیلد یافت نشد.');
             $key = $existing['field_key'];
+            if ($key === 'customer_name' && $max > 150) {
+                throw new DomainException('نام مشتری حداکثر ۱۵۰ کاراکتر است.');
+            }
             if ((int)$existing['is_system'] === 1) {
                 if ($type !== $existing['type'] || $required !== (int)$existing['required'] ||
                     $active !== 1) throw new DomainException('نوع، وضعیت و الزامی‌بودن فیلد سیستمی قابل تغییر نیست.');
@@ -315,7 +319,8 @@ final class RecordManager
             }
             switch ($f['type']) {
                 case 'text':
-                    if (mb_strlen($input) > (int)$f['max_length']) $errors[(string)$id] = 'طول متن بیش از حد مجاز است.';
+                    if (mb_strlen($input) > min((int)$f['max_length'],$key === 'customer_name' ? 150 : 4000))
+                        $errors[(string)$id] = 'طول متن بیش از حد مجاز است.';
                     break;
                 case 'textarea':
                     if (mb_strlen($input) > 10000) $errors[(string)$id] = 'متن حداکثر ۱۰هزار کاراکتر باشد.';
