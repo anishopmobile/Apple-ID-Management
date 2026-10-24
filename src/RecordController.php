@@ -227,7 +227,7 @@ final class RecordController
           <button class="btn btn-primary flex-shrink-0" id="create-field">+ ایجاد فیلد جدید</button>
         </div>
         <section class="card"><div class="table-responsive">
-        <table class="table table-vcenter card-table"><thead><tr><th>ترتیب</th><th>نام نمایشی</th><th>نوع فیلد</th><th>الزامی</th><th>در جدول</th><th>قابل فیلتر</th><th>وضعیت</th><th>عملیات</th></tr></thead><tbody id="record-table-body">
+        <table class="table table-vcenter card-table"><thead><tr><th>ترتیب</th><th>نام نمایشی</th><th>نوع فیلد</th><th>الزامی</th><th>در جدول</th><th>قابل فیلتر</th><th>وضعیت</th><th>عملیات</th></tr></thead><tbody>
         <?php foreach ($fields as $f): ?>
         <tr><td><?=e((string)$f['sort_order'])?></td><td class="fw-semibold"><?=e($f['label'])?><?php if ((int)$f['is_system']): ?> <span class="badge bg-blue-lt">سیستمی</span><?php endif;?></td>
         <td><?= e(RecordManager::fieldTypes()[$f['type']]??$f['type'])?></td>
@@ -350,7 +350,7 @@ final class RecordController
               $params['page']=1; ?>
               <th><a data-sort-field="<?=e((string)$f['id'])?>" data-sort-label="<?=e($f['label'])?>" href="/index.php?<?=e(http_build_query($params))?>"><?=e($f['label'])?><?= $same ? (($_GET['direction']??'')==='asc'?' ↑':' ↓'):'' ?></a></th>
           <?php endforeach;?>
-          <th>عملیات</th></tr></thead><tbody>
+          <th>عملیات</th></tr></thead><tbody id="record-table-body">
           <?php foreach ($listing['rows'] as $record): ?><tr><td class="text-secondary">#<?=e((string)$record['id'])?></td>
           <?php foreach ($visible as $field):
               $value=$record['values'][(int)$field['id']]??null;
