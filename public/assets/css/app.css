@@ -115,3 +115,23 @@ button, input, select, textarea, .btn { font-family: inherit; }
 .site-logo-preview { max-width: 180px; max-height: 145px; padding: 7px; object-fit: contain; background: #fff; border: 1px solid #e4e8ef; border-radius: 12px; }
 #customer-export-form .form-check-label { overflow-wrap: anywhere; }
 #record-live-status { min-height: 1rem; }
+
+
+/* Settings use two deliberate rows before the full-width agreement editor.
+   Native field choices remain independent even on narrow RTL screens. */
+#settings-layout { max-width: 1600px; margin-inline: auto; }
+#settings-layout .row > [class*="col-"] { min-width: 0; }
+#settings-layout .card { overflow: hidden; }
+#settings-layout .card-header { min-height: 58px; }
+#settings-layout .card-body { min-width: 0; }
+#date-exception-fields { min-width: 0; }
+#date-exception-fields legend { float: none; width: auto; padding-inline: .35rem; max-width: 100%; }
+#date-exception-fields .form-check { min-height: 28px; }
+#date-exception-fields .form-check-label { cursor: pointer; overflow-wrap: anywhere; }
+#date-exception-fields .form-check-input:disabled + .form-check-label { cursor: default; }
+#commitment-editor-settings .card-body { overflow: visible; }
+#commitment-editor-settings textarea { min-height: 240px; resize: vertical; }
+@media (max-width: 767.98px) {
+  #settings-layout .card-header { min-height: auto; }
+  #date-exception-fields { padding: .75rem !important; }
+}
