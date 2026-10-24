@@ -41,6 +41,8 @@ jobs:
           node --check public/assets/js/app.js
           node --check public/assets/js/setup.js
           node --check public/assets/js/records.js
+          node --check public/assets/js/customers.js
+          node --check public/assets/js/backup.js
           node --check tests/modal_browser.mjs
           node --check public/assets/vendor/hcg/hcg-select.js
       - name: PHP dependencies

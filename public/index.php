@@ -87,6 +87,7 @@ try {
         <p class="text-secondary">ورود امن به پنل مدیریت</p></div>
         <section class="card card-lg shadow-sm"><div class="card-body">
         <?php if (isset($_GET['installed'])): ?><div class="alert alert-success">راه‌اندازی با موفقیت انجام شد. با حساب مدیر وارد شوید.</div><?php endif; ?>
+        <?php if (isset($_GET['restored'])): ?><div class="alert alert-success">بازیابی اطلاعات با موفقیت انجام شد. برای امنیت، دوباره وارد شوید.</div><?php endif; ?>
         <?php if ($error): ?><div class="alert alert-danger" role="alert"><?= e($error) ?></div><?php endif; ?>
         <h2 class="h3 text-center mb-4">ورود مدیر سامانه</h2>
         <form action="/index.php?route=login" method="post">
@@ -101,6 +102,12 @@ try {
         exit;
     }
 
+    if ($route === 'customers_api') {
+        require_admin();
+        require_once dirname(__DIR__) . '/src/RecordManager.php';
+        require_once dirname(__DIR__) . '/src/CustomerDirectory.php';
+        (new CustomerDirectory())->api();
+    }
     if (in_array($route, ['records_api', 'records_export'], true)) {
         require_admin();
         require_once dirname(__DIR__) . '/src/RecordController.php';
@@ -118,6 +125,18 @@ try {
         $recordController = new RecordController();
         $recordController->dispatch($route);
     }
+    $customersController = null;
+    if ($route === 'customers') {
+        require_once dirname(__DIR__) . '/src/RecordManager.php';
+        require_once dirname(__DIR__) . '/src/CustomerDirectory.php';
+        $customersController = new CustomerDirectory();
+    }
+    $backupController = null;
+    if ($route === 'backup') {
+        require_once dirname(__DIR__) . '/src/BackupController.php';
+        $backupController = new BackupController();
+        $backupController->dispatch();
+    }
 
     function layout_start(string $site, string $heading, string $route, array $routes, array $admin): void {
         ?>
@@ -129,6 +148,11 @@ try {
         <script src="/assets/vendor/tabler/tabler.min.js" defer></script>
         <script src="/assets/vendor/apexcharts/apexcharts.min.js" defer></script>
         <script src="/assets/js/app.js" defer></script>
+        <?php if ($route === 'customers'): ?>
+        <script src="/assets/js/customers.js" defer></script>
+        <?php elseif ($route === 'backup'): ?>
+        <script src="/assets/js/backup.js" defer></script>
+        <?php endif; ?>
         <?php if (in_array($route, ['records','records_fields'], true)): ?>
         <link rel="stylesheet" href="/assets/vendor/hcg/hcg-select.css">
         <link rel="stylesheet" href="/assets/vendor/persian-datepicker/persian-datepicker.min.css">
@@ -228,6 +252,10 @@ try {
         <?php
     } elseif ($recordController !== null) {
         $recordController->render($route);
+    } elseif ($customersController !== null) {
+        $customersController->render();
+    } elseif ($backupController !== null) {
+        $backupController->render();
     } else {
         ?>
         <div class="card"><div class="card-body empty-state"><div class="empty-state-icon">◈</div><h3><?= e($heading) ?></h3><p class="text-secondary">ساختار این بخش آماده است. امکانات اختصاصی آن پس از دریافت جزئیات مرحله بعد پیاده‌سازی می‌شود.</p><span class="badge bg-yellow-lt text-yellow">در انتظار تعریف امکانات</span></div></div>
