@@ -121,6 +121,11 @@ $filtered=$manager->listing([
 check($filtered['total']>0 && $filtered['total']<31, 'combined typed filters');
 $filtered=$manager->listing(['filter'=>[$new['text']['id']=>"' OR 1=1 --"]]);
 check($filtered['total']===0,'SQL injection query remains parameterized');
+check($manager->listing(['filter'=>[$fields['mobile']['id']=>'09123456789']])['total']>=2,
+    'system mobile is filterable even when metadata flag is disabled');
+check($manager->listing(['filter'=>[$fields['customer_name']['id']=>'نام متفاوت']])['total']>=1,
+    'customer name live filter is supported');
+
 
 $excel=new RecordSpreadsheet($manager);
 $file=$excel->exportAll();
@@ -165,6 +170,9 @@ try {
     check(count($check['warnings'])>=1,'duplicate mobile warning');
     $count=$excel->commit($temp);
     check($count===2,'atomic Excel import');
+    check($manager->listing(['filter'=>[$fields['apple_email']['id']=>'test@example.com']])['total']>=2,
+        'Apple ID live filter matches imported dynamic records');
+
     check((int)db()->query('SELECT COUNT(*) FROM ' . table('customers'))->fetchColumn()===$beforeCustomers+2,
         'import creates only one new customer for equivalent mobile formats');
 

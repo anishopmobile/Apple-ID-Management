@@ -3,7 +3,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const rows = document.getElementById('customer-rows');
   if (!rows) return;
   const query = document.getElementById('customer-search-query');
-  const by = document.getElementById('customer-search-by');
   const perPage = document.getElementById('customer-page-size');
   const status = document.getElementById('customer-live-status');
   const info = document.getElementById('customer-page-info');
@@ -24,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
     status.textContent = 'در حال جستجو...';
     try {
       const args = new URLSearchParams({
-        route: 'customers_api', q: query.value, by: by.value,
+        route: 'customers_api', q: query.value,
         per_page: perPage.value, page: String(page)
       });
       const response = await fetch('/index.php?' + args, {
@@ -73,11 +72,6 @@ document.addEventListener('DOMContentLoaded', () => {
     timer = setTimeout(refresh, 200);
   }
   query.addEventListener('input', restart);
-  by.addEventListener('change', () => {
-    query.placeholder = by.value === 'mobile' ? 'شماره موبایل را بنویسید...' : 'نام مشتری را بنویسید...';
-    query.inputMode = by.value === 'mobile' ? 'tel' : 'text';
-    restart();
-  });
   perPage.addEventListener('change', restart);
   prev.addEventListener('click', () => { if (page > 1) { page--; refresh(); } });
   next.addEventListener('click', () => { if (page < pages) { page++; refresh(); } });

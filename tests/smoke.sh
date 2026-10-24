@@ -68,6 +68,7 @@ echo '[smoke] login, remember cookie and authenticated dashboard passed'
 
 php tests/records_integration.php
 php tests/customers_backup_integration.php
+php tests/customer_export_settings.php
 
 curl -fsS -b "$COOKIE" -c "$COOKIE" "$BASE/index.php?route=records_fields" >"$TMP"
 grep -q 'ایجاد فیلد جدید' "$TMP"
@@ -101,6 +102,31 @@ php -r '$j=json_decode(file_get_contents($argv[1]),true); if(empty($j["ok"])) ex
 curl -fsS -b "$COOKIE" -c "$COOKIE" "$BASE/index.php" >"$TMP"
 grep -q 'id="dashboard-chart"' "$TMP"
 echo '[smoke] AJAX field creation, record input validation, record loading/deletion and dashboard passed'
+
+# Exercise actual uploaded image path, public safe delivery and both logo slots.
+LOGO_IMAGE="$(mktemp --suffix=.png)"
+php -r '$img=imagecreatetruecolor(64,64);imagefilledrectangle($img,0,0,63,63,imagecolorallocate($img,24,70,160));imagepng($img,$argv[1]);imagedestroy($img);' "$LOGO_IMAGE"
+curl -fsS -b "$COOKIE" -c "$COOKIE" "$BASE/index.php?route=settings" >"$TMP"
+TOKEN="$(grep -oP 'name="_csrf" value="\K[^"]+' "$TMP" | head -1)"
+curl -sS -b "$COOKIE" -c "$COOKIE" -D "$HEAD" -o /dev/null \
+  -F "_csrf=$TOKEN" -F "action=upload_logo" -F "logo=@$LOGO_IMAGE;type=image/png" \
+  "$BASE/index.php?route=settings"
+grep -qiE 'HTTP/1.1 303' "$HEAD"
+curl -fsS -b "$COOKIE" "$BASE/index.php" >"$TMP"
+grep -q 'site-logo-sidebar' "$TMP"
+curl -fsS "$BASE/index.php?route=login" >"$TMP"
+grep -q 'site-logo-login' "$TMP"
+curl -fsS -D "$HEAD" -o "$TMP" "$BASE/index.php?route=site_logo"
+grep -qi 'Content-Type: image/png' "$HEAD"
+cmp "$LOGO_IMAGE" "$TMP"
+curl -sS -b "$COOKIE" -c "$COOKIE" -D "$HEAD" -o /dev/null \
+  --data-urlencode "_csrf=$TOKEN" --data-urlencode "action=remove_logo" \
+  "$BASE/index.php?route=settings"
+grep -qiE 'HTTP/1.1 303' "$HEAD"
+rm -f "$LOGO_IMAGE"
+echo '[smoke] validated PNG upload, login/sidebar logo and private image delivery passed'
+curl -fsS -b "$COOKIE" -c "$COOKIE" "$BASE/index.php" >"$TMP"
+
 TOKEN="$(grep -oP 'name="_csrf" value="\K[^"]+' "$TMP" | head -1)"
 curl -sS -b "$COOKIE" -c "$COOKIE" -D "$HEAD" -o /dev/null \
   --data-urlencode "_csrf=$TOKEN" "$BASE/index.php?route=logout"

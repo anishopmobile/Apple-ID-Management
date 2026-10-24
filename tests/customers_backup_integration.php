@@ -27,7 +27,9 @@ ccheck($directory->listing(['by'=>'name','q'=>'جستجوی زنده شماره 
 ccheck($directory->listing(['by'=>'mobile','q'=>'۰۹۳۳۰۰۰۰۰۱۳'])['total']===1,'Persian mobile digits');
 ccheck($directory->listing(['by'=>'mobile','q'=>'093300'])['total']===28,'partial phone');
 ccheck($directory->listing(['by'=>'name','q'=>'%'])['total']===0,'SQL LIKE escapes wildcard');
-creject(fn()=> $directory->listing(['by'=>'mobile','q'=>"' OR 1=1"]),'unsafe phone search');
+ccheck($directory->listing(['q'=>"' OR 1=1"])['total']===0,'SQL injection string is parameterized');
+ccheck($directory->listing(['q'=>'093300'])['total']===28,'phone search works without selector');
+ccheck($directory->listing(['q'=>'جستجوی زنده شماره 13'])['total']===1,'name search works without selector');
 ccheck($directory->listing(['per_page'=>999])['perPage']===25,'invalid page size rejected');
 
 $backup=new BackupService();

@@ -50,7 +50,9 @@ try {
   assert.equal(await page.locator('#customer-rows tr').count(),1,
     'Live customer name search updates rows without refresh');
   const customerUrl=page.url();
-  await page.locator('#customer-search-by').selectOption('mobile');
+  assert.equal(await page.locator('#customer-search-by').count(),0,'No separate customer search mode');
+  assert.equal(await page.locator('#customer-search-query').getAttribute('placeholder'),
+    'نام مشتری یا شماره موبایل مشتری را وارد کنید');
   await page.locator('#customer-search-query').fill('۰۹۳۳۰۰۰۰۰۱۳');
   await page.waitForFunction(() => document.querySelector('#customer-live-status')?.textContent?.includes('1 مشتری مطابق'));
   assert.equal(await page.locator('#customer-rows tr').count(),1,
@@ -69,6 +71,25 @@ try {
   await page.waitForFunction(() => document.querySelector('#customer-page-info')?.textContent?.includes('صفحه 2 از'));
   assert.equal(page.url(),customerUrl,'Ajax pagination never reloads customer page');
   console.log('[browser] instant customer searches, 25 rows and next page: PASS');
+
+  await page.goto(base + '/index.php?route=customers_export');
+  assert.ok(await page.locator('#customer-export-form input[type=checkbox]').count()>3,
+    'Export selector includes configured dynamic fields');
+  const defaults=await page.locator('#customer-export-form input[type=checkbox]:checked').count();
+  assert.equal(defaults,2,'Only name and mobile preselected to avoid secret leakage');
+  await page.locator('#export-select-none').click();
+  assert.equal(await page.locator('#export-submit').isDisabled(),true,
+    'Cannot submit without fields');
+  await page.locator('#export-select-all').click();
+  assert.equal(await page.locator('#export-submit').isEnabled(),true);
+  console.log('[browser] customer export field selection and secret-safe defaults: PASS');
+
+  await page.goto(base + '/index.php?route=settings');
+  assert.equal(await page.locator('#settings-site-name').count(),1,'Site title editable');
+  assert.equal(await page.locator('#settings-logo').count(),1,'Site logo upload available');
+  assert.equal(await page.locator('#settings-current-password').count(),1,'Current password required');
+  assert.equal(await page.locator('#settings-new-password').count(),1,'New password required');
+  console.log('[browser] secure site settings forms available: PASS');
 
   await page.goto(base + '/index.php?route=backup');
   assert.equal(await page.locator('#backup-directory').count(),1,'Backup folder input exists');
@@ -209,6 +230,27 @@ try {
   assert.ok(dateFieldId);
   assert.equal(backend.record.values[dateFieldId], '2026-10-24',
     'Gregorian input must persist correctly to the normalized MySQL DATE');
+  // Live search on system fields and column sort must NOT navigate.
+  const filters=page.locator('#record-filters input[data-live-record-search]');
+  assert.ok(await filters.count()>=3,'Customer name, mobile, and Apple ID live filters visible');
+  const searchName=filters.first();
+  const nonce=await page.evaluate(() => { window.__ajaxPagePersisted='alive';return location.pathname;});
+  await searchName.fill('مشتری مرورگر خارجی');
+  await page.waitForFunction(() => document.querySelector('#record-total')?.textContent?.includes('رکوردها: 1'));
+  assert.equal(await page.locator('#record-table-body tr').count(),1,
+    'Name live search returns the matching record without a button click');
+  const sortLink=page.locator('#record-grid a[data-sort-field]').first();
+  await sortLink.click();
+  await page.waitForFunction(() => document.querySelector('#record-live-status')?.textContent?.includes('رکورد مطابق'));
+  assert.equal(await page.evaluate(() => window.__ajaxPagePersisted),'alive',
+    'Sorting columns uses AJAX, not full page navigation');
+  assert.equal(await page.locator('#record-table-body tr').count(),1);
+  await searchName.fill('');
+  await page.waitForFunction(() => document.querySelector('#record-total')?.textContent?.includes('رکوردها: 1')===false);
+  assert.equal(await page.evaluate(() => window.__ajaxPagePersisted),'alive',
+    'Live search does not refresh the page');
+  console.log('[browser] record live search and column sorting over AJAX: PASS');
+
   await openModal(page, '#open-import', '#import-modal');
   await closeModal(page, '#import-modal');
   console.log('[browser] create-record and Excel import modals open and close correctly');

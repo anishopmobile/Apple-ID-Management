@@ -486,7 +486,7 @@ final class RecordManager
         $minima = is_array($query['filter_min'] ?? null) ? $query['filter_min'] : [];
         $maxima = is_array($query['filter_max'] ?? null) ? $query['filter_max'] : [];
         foreach ($allowed as $id=>$f) {
-            if (!(int)$f['filterable']) continue;
+            if (!(int)$f['filterable'] && !in_array($f['field_key'], ['customer_name','mobile','apple_email'], true)) continue;
             $type = $f['type']; $expr = $this->valueExpression($f);
             $value = isset($filters[$id]) && is_scalar($filters[$id]) ? trim(self::digits((string)$filters[$id])) : '';
             if ($value !== '') {

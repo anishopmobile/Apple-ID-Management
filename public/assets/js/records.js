@@ -144,8 +144,11 @@ document.addEventListener('DOMContentLoaded', () => {
       refreshSelects();
       modal('record-modal').show();
     });
-    document.querySelectorAll('.edit-record').forEach((button) => {
-      button.addEventListener('click', async () => {
+    // Delegate row actions to the persistent table container; AJAX replaces
+    // rows after live searches and sorts without reloading the page.
+    document.getElementById('record-grid')?.addEventListener('click', async (event) => {
+      const button=event.target.closest('.edit-record');
+      if (button) {
         button.disabled = true;
         try {
           const url = apiUrl + '&action=record&id=' + encodeURIComponent(button.dataset.id);
@@ -165,18 +168,19 @@ document.addEventListener('DOMContentLoaded', () => {
           modal('record-modal').show();
         } catch (ex) { window.alert(ex.message || 'خطا در دریافت رکورد.'); }
         finally { button.disabled = false; }
-      });
+      }
     });
     recordForm.addEventListener('submit', (event) => { event.preventDefault(); submitForm(recordForm); });
-    document.querySelectorAll('.delete-record').forEach((button) => {
-      button.addEventListener('click', async () => {
+    document.getElementById('record-grid')?.addEventListener('click', async (event) => {
+      const button=event.target.closest('.delete-record');
+      if (button) {
         if (!window.confirm('این رکورد به‌صورت منطقی حذف می‌شود. اطلاعات مشتری حذف نخواهد شد. ادامه می‌دهید؟')) return;
         button.disabled = true;
         const body = new FormData();
         body.append('_csrf',csrf); body.append('action','record_delete'); body.append('id',button.dataset.id);
         try { await submitApi(body); window.location.reload(); }
         catch (ex) { window.alert(ex.message); button.disabled = false; }
-      });
+      }
     });
     document.getElementById('open-import')?.addEventListener('click', () => modal('import-modal').show());
     document.getElementById('xlsx')?.addEventListener('change', (event) => {

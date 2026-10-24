@@ -107,3 +107,11 @@ button, input, select, textarea, .btn { font-family: inherit; }
   .card .card-header, .card .card-body { padding: 1rem; }
   .page-body .table { min-width: 650px; }
 }
+
+
+/* Private brand image is rendered via the fixed site_logo endpoint. */
+.site-logo-login { display: block; max-width: 125px; max-height: 125px; width: auto; height: auto; object-fit: contain; }
+.site-logo-sidebar { display: inline-block; width: 40px; height: 40px; object-fit: contain; border-radius: 8px; flex: 0 0 auto; background: white; }
+.site-logo-preview { max-width: 180px; max-height: 145px; padding: 7px; object-fit: contain; background: #fff; border: 1px solid #e4e8ef; border-radius: 12px; }
+#customer-export-form .form-check-label { overflow-wrap: anywhere; }
+#record-live-status { min-height: 1rem; }
