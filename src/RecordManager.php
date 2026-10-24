@@ -504,7 +504,8 @@ final class RecordManager
            LEFT JOIN ' . $this->t('record_deletions') . ' d ON d.record_id=r.id';
         $countStmt = $this->pdo->prepare('SELECT COUNT(*)' . $from . $where);
         $countStmt->execute($params); $count = (int)$countStmt->fetchColumn();
-        $per = in_array((int)($query['per_page'] ?? 25),[25,50,100],true) ? (int)$query['per_page'] : 25;
+        $requestedPer = (int)($query['per_page'] ?? 25);
+        $per = in_array($requestedPer, [25,50,100], true) ? $requestedPer : 25;
         $pages = max(1,(int)ceil($count/$per));
         $page = min($pages, max(1,(int)($query['page'] ?? 1)));
         $offset = ($page-1)*$per;
