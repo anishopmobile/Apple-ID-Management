@@ -70,7 +70,6 @@ php tests/records_integration.php
 php tests/customers_backup_integration.php
 php tests/customer_export_settings.php
 php tests/apple_id_card_integration.php
-php tests/apple_id_card_pdf_integration.php
 
 curl -fsS -b "$COOKIE" -c "$COOKIE" "$BASE/index.php?route=records_fields" >"$TMP"
 grep -q 'ایجاد فیلد جدید' "$TMP"
@@ -123,6 +122,9 @@ echo '[smoke] real 85x55mm PDF download, CSRF, POST-only, invalid/deleted IDs pr
 curl -fsS -b "$COOKIE" -c "$COOKIE" "$BASE/index.php?route=records" >"$TMP"
 echo '[smoke] dynamic record field pages and server integration passed'
 node tests/modal_browser.mjs "$BASE"
+# Run extra PDF fixture creation after the UI suite so its search-count
+# assertions still target the original two 'card-' regression records.
+php tests/apple_id_card_pdf_integration.php
 
 
 TOKEN="$(grep -oP 'name="_csrf" value="\K[^"]+' "$TMP" | head -1)"
