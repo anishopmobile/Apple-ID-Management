@@ -146,14 +146,14 @@ try {
   assert.match(await page.locator('#customer-list thead').innerText(), /میلادی/,
     'Customer date column advertises the selected Gregorian calendar');
   assert.equal(await page.locator('body').getAttribute('data-date-mode'),'gregorian');
-  assert.match(await page.locator('#customer-list tbody tr').first().innerText(), /20\\d{2}\\/\\d{2}\\/\\d{2}/,
+  assert.match(await page.locator('#customer-list tbody tr').first().innerText(), /20\d{2}\/\d{2}\/\d{2}/,
     'Customer dates display Gregorian years');
   await page.goto(base + '/index.php?route=records');
   assert.equal(await page.locator('body').getAttribute('data-date-mode'),'gregorian');
   await page.locator('#record-filters').evaluate(form => form.requestSubmit());
   await page.waitForFunction(() => document.querySelector('#record-live-status')?.textContent?.includes('رکورد مطابق'));
   const isoDate=await page.locator('#record-table-body tr').first().innerText();
-  assert.match(isoDate,/20\\d{2}\\/\\d{2}\\/\\d{2}/,
+  assert.match(isoDate,/20\d{2}\/\d{2}\/\d{2}/,
     'Live AJAX record table displays Gregorian dates');
   await page.goto(base + '/index.php?route=dashboard');
   assert.match(await page.locator('main').innerText(), /میلادی/,
