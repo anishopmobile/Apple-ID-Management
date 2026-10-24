@@ -200,8 +200,8 @@ try {
     'Customer registration dates stay Jalali');
   await page.goto(base + '/index.php?route=records');
   assert.equal(await page.locator('body').getAttribute('data-date-mode'),'gregorian');
-  const ids=(await page.locator('body').getAttribute('data-date-exempt-ids')).split(',');
-  assert.ok(ids.includes(secondId) && !ids.includes(chosenId),
+  const savedExemptIds=(await page.locator('body').getAttribute('data-date-exempt-ids')).split(',');
+  assert.ok(savedExemptIds.includes(secondId) && !savedExemptIds.includes(chosenId),
     'Live record grid receives only the saved exception, not stale ones');
   await page.locator('#record-filters').evaluate(form=>form.requestSubmit());
   await page.waitForFunction(()=>document.querySelector('#record-live-status')?.textContent?.includes('رکورد مطابق'));
