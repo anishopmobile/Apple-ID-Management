@@ -125,6 +125,7 @@ curl -sS -b "$COOKIE" -c "$COOKIE" -D "$HEAD" -o /dev/null \
 grep -qiE 'HTTP/1.1 303' "$HEAD"
 rm -f "$LOGO_IMAGE"
 echo '[smoke] validated PNG upload, login/sidebar logo and private image delivery passed'
+curl -fsS -b "$COOKIE" -c "$COOKIE" "$BASE/index.php" >"$TMP"
 
 TOKEN="$(grep -oP 'name="_csrf" value="\K[^"]+' "$TMP" | head -1)"
 curl -sS -b "$COOKIE" -c "$COOKIE" -D "$HEAD" -o /dev/null \
