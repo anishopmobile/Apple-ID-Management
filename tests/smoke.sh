@@ -125,6 +125,9 @@ echo '[smoke] real 85x55mm PDF download, CSRF, POST-only, invalid/deleted IDs pr
 # Keep the authenticated HTML page in TMP: later CSRF/logout checks read it.
 curl -fsS -b "$COOKIE" -c "$COOKIE" "$BASE/index.php?route=records" >"$TMP"
 echo '[smoke] dynamic record field pages and server integration passed'
+# Create a second real date field in the isolated CI database so that the
+# browser can prove two independent selections never toggle each other.
+php -r 'require "src/common.php";require "src/RecordManager.php";$m=new RecordManager(db(),config()["DB_PREFIX"]);$m->saveField(["label"=>"تاریخ آزمون مستقل دوم","type"=>"date","sort_order"=>991,"max_length"=>255,"required"=>0,"active"=>1,"filterable"=>1,"show_in_table"=>1]);'
 # Actual HTTP form regression: checked, unchecked, and stale/cached payloads.
 # PHP must receive native checkbox names directly, never JS-generated JSON.
 DATE_FIELD_ID="$(php -r 'require "src/common.php";require "src/RecordManager.php";$r=new RecordManager(db(),config()["DB_PREFIX"]);$r->migrate();foreach($r->fields() as $f) if($f["type"]==="date" && $f["field_key"]!=="created_at") {echo $f["id"];break;}')"
