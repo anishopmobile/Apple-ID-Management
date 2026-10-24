@@ -354,7 +354,7 @@ final class RecordController
           <?php foreach ($listing['rows'] as $record): ?><tr><td class="text-secondary">#<?=e((string)$record['id'])?></td>
           <?php foreach ($visible as $field):
               $value=$record['values'][(int)$field['id']]??null;
-              if ($field['type']==='date') $value=RecordManager::dateLabel($value);
+              if ($field['type']==='date') $value=RecordManager::dateLabel($value,(int)$field['id'],(string)$field['field_key']);
               if ($field['type']==='boolean' && $value!==null && $value!=='') $value=(int)$value?'بله':'خیر';
               if ($field['type']==='money' && $value!==null && $value!=='') {
                   $parts=explode('.',(string)$value,2);
@@ -411,7 +411,7 @@ final class RecordController
             $shown=(string)$cell;
             if ($f['type']==='date' && trim($shown)!=='') {
                 $normalized=RecordManager::normalizeDate($shown);
-                if ($normalized!==null) $shown=RecordManager::dateLabel($normalized);
+                if ($normalized!==null) $shown=RecordManager::dateLabel($normalized,(int)$f['id'],(string)$f['field_key']);
             }
             echo e($shown);
             ?></td><?php endforeach;?></tr><?php endforeach;?></tbody></table></div><?php endif;?>
