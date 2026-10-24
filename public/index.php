@@ -17,11 +17,16 @@ try {
         'records' => ['ایجاد رکورد', 'clipboard'],
         'records_fields' => ['ایجاد فیلد', 'settings'],
         'customers' => ['مدیریت مشتریان', 'users'],
+        'customers_export' => ['خروجی اکسل مشتریان', 'database'],
         'reports' => ['گزارشات', 'chart'],
         'settings' => ['تنظیمات سایت', 'settings'],
         'backup' => ['پشتیبان‌گیری و بازیابی', 'database'],
     ];
     $error = '';
+    if ($route === 'site_logo') {
+        require_once dirname(__DIR__) . '/src/SiteSettings.php';
+        SiteSettings::sendLogo();
+    }
     if ($route === 'logout') {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); exit('روش درخواست مجاز نیست.'); }
         require_csrf();
@@ -75,6 +80,8 @@ try {
             }
         }
         $site = setting('site_name', 'مدیریت Apple ID');
+        require_once dirname(__DIR__) . '/src/SiteSettings.php';
+        $loginLogo = SiteSettings::logoUrl();
         ?>
         <!doctype html><html lang="fa" dir="rtl"><head>
         <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -83,7 +90,7 @@ try {
         <link rel="stylesheet" href="/assets/css/app.css">
         </head><body class="theme-light login-body">
         <main class="container container-tight py-5"><div class="text-center mb-4">
-        <div class="brand-mark mx-auto">A</div><h1 class="h2 mt-3"><?= e($site) ?></h1>
+        <?php if ($loginLogo): ?><img src="<?=e($loginLogo)?>" alt="لوگوی سایت" class="site-logo-login mx-auto"><?php else: ?><div class="brand-mark mx-auto">A</div><?php endif; ?><h1 class="h2 mt-3"><?= e($site) ?></h1>
         <p class="text-secondary">ورود امن به پنل مدیریت</p></div>
         <section class="card card-lg shadow-sm"><div class="card-body">
         <?php if (isset($_GET['installed'])): ?><div class="alert alert-success">راه‌اندازی با موفقیت انجام شد. با حساب مدیر وارد شوید.</div><?php endif; ?>
@@ -102,13 +109,41 @@ try {
         exit;
     }
 
+    if ($route === 'customers_export') {
+        require_admin();
+        require_once dirname(__DIR__) . '/src/CustomerExport.php';
+        $export = new CustomerExport();
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            require_csrf();
+            try {
+                $ids = $_POST['fields'] ?? [];
+                if (!is_array($ids)) throw new DomainException('فیلدهای خروجی نامعتبر هستند.');
+                $result = $export->create($ids);
+                $file=$result['file'];
+                header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+                header('Content-Disposition: attachment; filename="customers-records-'.gmdate('Ymd-His').'.xlsx"');
+                header('Content-Length: '.filesize($file));
+                header('X-Content-Type-Options: nosniff');
+                readfile($file);
+                @unlink($file);
+                exit;
+            } catch (DomainException $ex) {
+                $_SESSION['export_error']=$ex->getMessage();
+                go('/index.php?route=customers_export');
+            } catch (Throwable $ex) {
+                error_log('[customer export] '.$ex->getMessage());
+                $_SESSION['export_error']='تولید اکسل ناموفق بود؛ فضای دیسک و حافظه سرور را بررسی کنید.';
+                go('/index.php?route=customers_export');
+            }
+        }
+    }
     if ($route === 'customers_api') {
         require_admin();
         require_once dirname(__DIR__) . '/src/RecordManager.php';
         require_once dirname(__DIR__) . '/src/CustomerDirectory.php';
         (new CustomerDirectory())->api();
     }
-    if (in_array($route, ['records_api', 'records_export'], true)) {
+    if (in_array($route, ['records_api', 'records_export', 'records_listing_api'], true)) {
         require_admin();
         require_once dirname(__DIR__) . '/src/RecordController.php';
         (new RecordController())->dispatch($route);
@@ -131,6 +166,12 @@ try {
         require_once dirname(__DIR__) . '/src/CustomerDirectory.php';
         $customersController = new CustomerDirectory();
     }
+    $settingsController = null;
+    if ($route === 'settings') {
+        require_once dirname(__DIR__) . '/src/SiteSettings.php';
+        $settingsController = new SiteSettings();
+        $settingsController->dispatch((int)$admin['id']);
+    }
     $backupController = null;
     if ($route === 'backup') {
         require_once dirname(__DIR__) . '/src/BackupController.php';
@@ -148,6 +189,9 @@ try {
         <script src="/assets/vendor/tabler/tabler.min.js" defer></script>
         <script src="/assets/vendor/apexcharts/apexcharts.min.js" defer></script>
         <script src="/assets/js/app.js" defer></script>
+        <?php if ($route === 'customers_export'): ?>
+        <script src="/assets/js/customers-export.js" defer></script>
+        <?php endif; ?>
         <?php if ($route === 'customers'): ?>
         <script src="/assets/js/customers.js" defer></script>
         <?php elseif ($route === 'backup'): ?>
@@ -167,7 +211,9 @@ try {
         <div class="page app-shell">
         <aside class="navbar navbar-vertical navbar-expand-lg app-sidebar" data-bs-theme="dark">
           <div class="container-fluid">
-            <h1 class="navbar-brand navbar-brand-autodark"><a href="/index.php" class="brand-text"><span class="brand-mini">A</span><?= e($site) ?></a></h1>
+            <?php require_once dirname(__DIR__) . '/src/SiteSettings.php'; $sidebarLogo=SiteSettings::logoUrl(); ?>
+            <h1 class="navbar-brand navbar-brand-autodark"><a href="/index.php" class="brand-text">
+              <?php if ($sidebarLogo): ?><img src="<?=e($sidebarLogo)?>" alt="لوگوی سایت" class="site-logo-sidebar"><?php else: ?><span class="brand-mini">A</span><?php endif; ?><?= e($site) ?></a></h1>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-menu" aria-controls="sidebar-menu" aria-expanded="false" aria-label="بازکردن منو"><span class="navbar-toggler-icon"></span></button>
             <div class="collapse navbar-collapse" id="sidebar-menu"><ul class="navbar-nav pt-lg-4">
               <li class="nav-item"><a class="nav-link <?= $route === 'dashboard' ? 'active' : '' ?>" href="/index.php"><span class="nav-link-icon">▦</span><span class="nav-link-title">داشبورد</span></a></li>
@@ -178,7 +224,7 @@ try {
                   <a class="nav-link nav-subitem <?= $route === 'records'?'active':'' ?>" href="/index.php?route=records">ایجاد رکورد</a>
                 </div>
               </li>
-              <?php foreach ($routes as $slug => $meta): if (in_array($slug,['dashboard','records','records_fields'],true)) continue; ?>
+              <?php foreach ($routes as $slug => $meta): if (in_array($slug,['dashboard','records','records_fields','customers_export'],true)) continue; ?>
               <li class="nav-item"><a class="nav-link <?= $route === $slug ? 'active' : '' ?>" href="/index.php?route=<?= e($slug) ?>"><span class="nav-link-icon"><?= e(['customers' => '♙', 'reports' => '▤', 'settings' => '⚙', 'backup' => '◫'][$slug]) ?></span><span class="nav-link-title"><?= e($meta[0]) ?></span></a></li>
               <?php endforeach; ?>
             </ul></div>
@@ -254,6 +300,14 @@ try {
         $recordController->render($route);
     } elseif ($customersController !== null) {
         $customersController->render();
+    } elseif ($route === 'customers_export') {
+        if (!empty($_SESSION['export_error'])) {
+            echo '<div class="alert alert-danger">'.e($_SESSION['export_error']).'</div>';
+            unset($_SESSION['export_error']);
+        }
+        $export->render();
+    } elseif ($settingsController !== null) {
+        $settingsController->render();
     } elseif ($backupController !== null) {
         $backupController->render();
     } else {
