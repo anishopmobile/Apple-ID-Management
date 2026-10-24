@@ -233,7 +233,7 @@ try {
   assert.equal(await page.locator('#settings-date-mode').inputValue(),'jalali');
 
   // Desktop layout: logical settings groups are coherent, commitment always last.
-  const layout = await page.locator('#settings-layout').evaluate(node=>{
+  const settingsGeometry = await page.locator('#settings-layout').evaluate(node=>{
     const box=id=>{const r=node.querySelector(id).getBoundingClientRect();
       return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,width:r.width};};
     return {
@@ -246,12 +246,12 @@ try {
       last:node.querySelector('.row:last-child section')?.id
     };
   });
-  assert.ok(layout.commitment.top>=layout.dates.bottom-1 &&
-    layout.commitment.top>=layout.password.bottom-1,
+  assert.ok(settingsGeometry.commitment.top>=settingsGeometry.dates.bottom-1 &&
+    settingsGeometry.commitment.top>=settingsGeometry.password.bottom-1,
     'Commitment section visually appears below every other settings card');
-  assert.equal(layout.last,'commitment-editor-settings',
+  assert.equal(settingsGeometry.last,'commitment-editor-settings',
     'Commitment is the final section in document order');
-  assert.ok(layout.docWidth<=layout.viewport+2,
+  assert.ok(settingsGeometry.docWidth<=settingsGeometry.viewport+2,
     'Desktop settings grid must not produce horizontal overflow');
   console.log('[browser] date exceptions: one/two/none saved, real label clicks, hard reload, no-JS POST and commitment-last layout: PASS');
 
