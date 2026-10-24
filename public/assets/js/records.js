@@ -194,9 +194,12 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('[data-jalali-date]').forEach((field) => {
       if (typeof window.jQuery === 'function' && typeof window.jQuery.fn.persianDatepicker === 'function') {
         try {
+          const gregorian = document.body.dataset.dateMode === 'gregorian';
           window.jQuery(field).persianDatepicker({
+            calendarType: gregorian ? 'gregorian' : 'persian',
             format: 'YYYY/MM/DD', autoClose: true, initialValue: false,
-            observer: false, calendar: { persian: { locale: 'fa' } }
+            observer: false, persianDigit: !gregorian,
+            calendar: { persian: { locale: 'fa' }, gregorian: { locale: 'en' } }
           });
         } catch (error) { /* text input remains usable if plugin fails */ }
       }
