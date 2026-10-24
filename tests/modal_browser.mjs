@@ -138,34 +138,55 @@ try {
   console.log('[browser] secure site settings forms available: PASS');
   assert.equal(await page.locator('#settings-date-mode').inputValue(),'jalali',
     'Existing users retain the default Jalali display setting');
+  const allExceptions=page.locator('#date-exception-fields input[name="jalali_exempt_ids[]"]');
+  assert.ok(await allExceptions.count()>1,'Existing date fields listed in settings');
+  const locked=allExceptions.locator('xpath=../input[@disabled]');
+  const systemDate=page.locator('#date-exception-fields input[disabled]');
+  assert.equal(await systemDate.count(),1,'System created-at exception is mandatory');
+  assert.equal(await systemDate.isChecked(),true,'Created-at must always stay Jalali');
+  const optional=page.locator('#date-exception-fields input[name="jalali_exempt_ids[]"]:not([disabled])');
+  assert.ok(await optional.count()>0,'Custom date fields can be individually exempted');
+  const chosenId=await optional.first().getAttribute('value');
+  await optional.first().check();
   await page.locator('#settings-date-mode').selectOption('gregorian');
   await page.locator('#date-display-settings button[type=submit]').click();
   assert.equal(await page.locator('#settings-date-mode').inputValue(),'gregorian',
-    'Gregorian preference is stored after submitting the settings form');
+    'Gregorian preference is stored after submitting settings form');
+  assert.equal(await page.locator('#date-exception-fields input[value="'+chosenId+'"]').isChecked(),true,
+    'Selected dynamic Jalali exception survives settings POST');
+  assert.equal(await page.locator('#date-exception-fields input[disabled]').isChecked(),true);
   await page.goto(base + '/index.php?route=customers');
-  assert.match(await page.locator('#customer-list thead').innerText(), /میلادی/,
-    'Customer date column advertises the selected Gregorian calendar');
+  assert.match(await page.locator('#customer-list thead').innerText(), /شمسی/,
+    'System customer registration heading always Jalali despite Gregorian global mode');
   assert.equal(await page.locator('body').getAttribute('data-date-mode'),'gregorian');
-  assert.match(await page.locator('#customer-list tbody tr').first().innerText(), /20\d{2}\/\d{2}\/\d{2}/,
-    'Customer dates display Gregorian years');
+  assert.match(await page.locator('#customer-list tbody tr').first().innerText(), /[۰-۹]{4}\\/[۰-۹]{2}\\/[۰-۹]{2}/,
+    'Customer date values remain Jalali under Gregorian mode');
   await page.goto(base + '/index.php?route=records');
   assert.equal(await page.locator('body').getAttribute('data-date-mode'),'gregorian');
+  assert.ok((await page.locator('body').getAttribute('data-date-exempt-ids')).split(',').includes(chosenId),
+    'AJAX client receives saved per-field IDs');
   await page.locator('#record-filters').evaluate(form => form.requestSubmit());
   await page.waitForFunction(() => document.querySelector('#record-live-status')?.textContent?.includes('رکورد مطابق'));
-  const isoDate=await page.locator('#record-table-body tr').first().innerText();
-  assert.match(isoDate,/20\d{2}\/\d{2}\/\d{2}/,
-    'Live AJAX record table displays Gregorian dates');
+  const dateHeader=page.locator('#record-grid thead a[data-sort-label="تاریخ ثبت"]');
+  assert.equal(await dateHeader.count(),1,'Record system created-at column is rendered');
+  const createAtColumn=await dateHeader.evaluate(a => Array.from(a.closest('tr').children).indexOf(a.closest('th')));
+  const createdValue=await page.locator('#record-table-body tr[data-record-id],#record-table-body tr').first().locator('td').nth(createAtColumn).innerText();
+  assert.match(createdValue,/[۰-۹]{4}\\/[۰-۹]{2}\\/[۰-۹]{2}/,
+    'AJAX record system created_at remains Jalali even when general calendar is Gregorian');
   await page.goto(base + '/index.php?route=dashboard');
-  assert.match(await page.locator('main').innerText(), /میلادی/,
-    'Dashboard latest-record date heading changes with setting');
+  assert.match(await page.locator('main').innerText(), /شمسی/,
+    'Dashboard recent-record registration date stays Jalali');
   await page.goto(base + '/index.php?route=settings');
+  await page.locator('#date-exception-fields input[value="'+chosenId+'"]').uncheck();
+  await page.locator('#date-display-settings button[type=submit]').click();
+  assert.equal(await page.locator('#date-exception-fields input[value="'+chosenId+'"]').isChecked(),false,
+    'Unchecking custom date exception is saved');
+  assert.equal(await page.locator('#date-exception-fields input[disabled]').isChecked(),true,
+    'Permanent system exception cannot be unchecked');
   await page.locator('#settings-date-mode').selectOption('jalali');
   await page.locator('#date-display-settings button[type=submit]').click();
   assert.equal(await page.locator('#settings-date-mode').inputValue(),'jalali');
-  await page.goto(base + '/index.php?route=customers');
-  assert.match(await page.locator('#customer-list thead').innerText(), /شمسی/,
-    'Switching back restores Jalali customer date column');
-  console.log('[browser] date preference toggles Gregorian/Jalali in settings, customers, record AJAX and dashboard: PASS');
+  console.log('[browser] system date always Jalali, custom exceptions selectable/persistent with Gregorian mode, record AJAX and dashboard: PASS');
 
   // Apple ID Card is a new Reports submenu, not a customer aggregation:
   // one record equals one table row, with independently searched Apple IDs.
