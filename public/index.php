@@ -138,6 +138,31 @@ try {
             }
         }
     }
+    if ($route === 'reports_apple_id_card_pdf') {
+        // Sensitive output: authenticated administrator + POST/CSRF only.
+        require_admin();
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405);
+            header('Allow: POST');
+            exit('روش درخواست مجاز نیست.');
+        }
+        require_csrf();
+        $requested = $_POST['record_id'] ?? null;
+        if (!is_string($requested) || !preg_match('/^[1-9][0-9]{0,17}$/D', $requested)) {
+            http_response_code(400);
+            exit('شناسه رکورد معتبر نیست.');
+        }
+        $include = ($_POST['include_sensitive'] ?? '0') === '1';
+        require_once dirname(__DIR__) . '/src/AppleIdCardPdf.php';
+        $id = (int)$requested;
+        try {
+            AppleIdCardPdf::send($id,$include);
+        } catch (DomainException $ex) {
+            // Never include private record values in error pages.
+            http_response_code(404);
+            exit('رکورد قابل صدور یافت نشد.');
+        }
+    }
     if ($route === 'reports_apple_id_card_api') {
         require_admin();
         require_once dirname(__DIR__) . '/src/AppleIdCardReport.php';
