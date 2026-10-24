@@ -152,7 +152,8 @@ grep -qi "commitment-$CM_ID.pdf" "$CM_HEADER"
 test "$(head -c 5 "$CM_PDF")" = '%PDF-'
 pdfinfo "$CM_PDF" | grep -q 'Page size: *595.2.*x 841.8.*pts'
 pdftotext -enc UTF-8 "$CM_PDF" "$TMP"
-grep -q 'تعهدنامه مرورگر' "$TMP"
+php -r '$s=Normalizer::normalize(file_get_contents($argv[1]), Normalizer::FORM_KC);
+  if(!is_string($s) || !str_contains($s,"تعهدنامه مرورگر")) exit(1);' "$TMP"
 CM_GET="$(curl -sS -o /dev/null -w '%{http_code}' -b "$COOKIE" \
   "$BASE/index.php?route=reports_commitment_pdf")"
 test "$CM_GET" = '405'
