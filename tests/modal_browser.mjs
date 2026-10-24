@@ -44,6 +44,38 @@ try {
   ]);
   console.log('[browser] administrator logged in');
 
+  await page.goto(base + '/index.php?route=customers');
+  await page.locator('#customer-search-query').fill('جستجوی زنده شماره 13');
+  await page.locator('#customer-live-status').getByText('1 مشتری مطابق جستجو پیدا شد.').waitFor();
+  assert.equal(await page.locator('#customer-rows tr').count(),1,
+    'Live customer name search updates rows without refresh');
+  const customerUrl=page.url();
+  await page.locator('#customer-search-by').selectOption('mobile');
+  await page.locator('#customer-search-query').fill('۰۹۳۳۰۰۰۰۰۱۳');
+  await page.waitForFunction(() => document.querySelector('#customer-live-status')?.textContent?.includes('1 مشتری مطابق'));
+  assert.equal(await page.locator('#customer-rows tr').count(),1,
+    'Live search normalizes Persian mobile digits');
+  assert.equal(page.url(),customerUrl,'Live filters must not navigate or refresh');
+  await page.locator('#customer-search-query').fill('');
+  await page.locator('#customer-page-size').selectOption('25');
+  await page.waitForFunction(() => {
+    const el=document.querySelector('#customer-page-info');
+    return el?.textContent?.includes('صفحه 1 از') && !document.querySelector('#customer-prev')?.disabled===false;
+  });
+  assert.equal(await page.locator('#customer-rows tr').count(),25,'25 latest customer rows visible');
+  await page.locator('#customer-next').click();
+  await page.waitForFunction(() => document.querySelector('#customer-page-info')?.textContent?.includes('صفحه 2 از'));
+  assert.equal(page.url(),customerUrl,'Ajax pagination never reloads customer page');
+  console.log('[browser] instant customer searches, 25 rows and next page: PASS');
+
+  await page.goto(base + '/index.php?route=backup');
+  assert.equal(await page.locator('#backup-directory').count(),1,'Backup folder input exists');
+  assert.equal(await page.locator('#restore-form input[type=file]').count(),1,'Restore upload exists');
+  assert.equal(await page.locator('#restore-password').count(),1,'Password verification required');
+  assert.equal(await page.locator('#restore-form input[name=restore_ack]').count(),1,
+    'Destructive restore acknowledgement required');
+  console.log('[browser] secure backup and restore forms available: PASS');
+
   // Existing fixture has >30 active non-deleted records. Dashboard must show
   // only the latest six, regardless of the total database size.
   await page.goto(base + '/index.php');
