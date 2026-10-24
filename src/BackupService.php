@@ -66,7 +66,10 @@ final class BackupService
         $path=rtrim($path,DIRECTORY_SEPARATOR);
         $storage=realpath(STORAGE_PATH) ?: '';
         $project=realpath(ROOT_PATH) ?: '';
-        $docroot=realpath((string)($_SERVER['DOCUMENT_ROOT']??'')) ?: '';
+        $rawDocroot=(string)($_SERVER['DOCUMENT_ROOT']??'');
+        // On PHP CLI, realpath('') resolves to the current working directory,
+        // which is NOT a web document root and must not block private storage.
+        $docroot=$rawDocroot!=='' ? (realpath($rawDocroot) ?: '') : '';
         $under=static fn(string $a,string $b): bool => $b!=='' &&
             ($a===$b || str_starts_with($a,rtrim($b,DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR));
         if ($under($path,$docroot) || ($under($path,$project) && !$under($path,$storage))) {
