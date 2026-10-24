@@ -111,7 +111,7 @@ final class CustomerExport
                             };
                         }
                         $value=$raw===null ? '' : (string)$raw;
-                        if ($type==='date' && $value!=='') $value=RecordManager::dateLabel($value);
+                        if ($type==='date' && $value!=='') $value=RecordManager::dateLabel($value,(int)$field['id'],(string)$field['field_key']);
                         if ($type==='boolean' && $value!=='') $value=$value==='1' ? 'بله' : 'خیر';
                         $coordinate=\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($index+1).$line;
                         $safeNumber=in_array($type,['number','money'],true)

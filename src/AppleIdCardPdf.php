@@ -59,7 +59,7 @@ final class AppleIdCardPdf
             if (self::isPassword($keyName,$name)) $data['password']=$value;
             if (self::isBirthday($keyName,$name)) {
                 $data['birthday'] = $field['type']==='date'
-                    ? RecordManager::dateLabel($value) : $value;
+                    ? RecordManager::dateLabel($value,(int)$field['id'],(string)$field['field_key']) : $value;
             }
             if (self::isFirstName($keyName,$name)) $data['first_name']=$value;
             if (self::isLastName($keyName,$name)) $data['last_name']=$value;

@@ -26,7 +26,9 @@ document.addEventListener('DOMContentLoaded', () => {
       if (/^\d{4}-\d\d-\d\d$/.test(text)) {
         const date=new Date(text+'T12:00:00Z');
         if (!Number.isNaN(date.getTime())) {
-          if (document.body.dataset.dateMode === 'gregorian') {
+          const exceptions = (document.body.dataset.dateExemptIds || '').split(',');
+          const alwaysJalali = field.field_key === 'created_at' || exceptions.includes(String(field.id));
+          if (document.body.dataset.dateMode === 'gregorian' && !alwaysJalali) {
             text = text.replaceAll('-', '/');
           } else {
             text=new Intl.DateTimeFormat('fa-IR-u-ca-persian', {

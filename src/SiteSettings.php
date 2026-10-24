@@ -58,6 +58,56 @@ final class SiteSettings
         date_display_mode($mode);
     }
 
+    /**
+     * Return all current date fields. Unlike labels, IDs survive field renames.
+     * New installs may not have visited the record page yet: migrate additively.
+     */
+    public function dateFields(): array {
+        require_once __DIR__.'/RecordManager.php';
+        $manager = new RecordManager($this->pdo,config()['DB_PREFIX']);
+        $manager->migrate();
+        return array_values(array_filter($manager->fields(), static fn($f)=>
+            $f['type']==='date' && empty($f['deleted_at'])
+        ));
+    }
+
+    public function updateDatePreferences(string $mode,array $exempt): void {
+        if (!in_array($mode,['jalali','gregorian'],true)) {
+            throw new DomainException('نوع نمایش تاریخ فقط شمسی یا میلادی است.');
+        }
+        $fields=$this->dateFields();
+        $allowed=[];
+        foreach ($fields as $field) {
+            if ($field['field_key']!=='created_at') $allowed[(int)$field['id']]=true;
+        }
+        if (count($exempt)>count($allowed) || count($exempt)>500) {
+            throw new DomainException('تعداد فیلدهای مستثنی نامعتبر است.');
+        }
+        $selected=[];
+        foreach ($exempt as $id) {
+            if (!is_string($id) || !preg_match('/^[1-9][0-9]{0,17}$/D',$id)
+                || !isset($allowed[(int)$id])) {
+                throw new DomainException('فهرست فیلدهای تاریخ معتبر نیست.');
+            }
+            $selected[(int)$id]=(int)$id;
+        }
+        $selected=array_values($selected);
+        sort($selected,SORT_NUMERIC);
+        $this->pdo->beginTransaction();
+        try {
+            $stmt=$this->pdo->prepare('INSERT INTO '.table('settings').' (name,value) VALUES (?,?)
+                ON DUPLICATE KEY UPDATE value=VALUES(value)');
+            $stmt->execute(['date_display_mode',$mode]);
+            $stmt->execute(['date_jalali_exempt_ids',json_encode($selected,JSON_THROW_ON_ERROR)]);
+            $this->pdo->commit();
+        } catch(Throwable $exception) {
+            if ($this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $exception;
+        }
+        date_display_mode($mode);
+        date_jalali_exempt_ids($selected);
+    }
+
     public function updatePassword(array $request, int $adminId): void
     {
         $current=$request['current_password']??null;
@@ -148,8 +198,10 @@ final class SiteSettings
                 case 'save_date_mode':
                     $mode=$_POST['date_display_mode']??null;
                     if (!is_string($mode)) throw new DomainException('نوع نمایش تاریخ نامعتبر است.');
-                    $this->updateDateMode($mode);
-                    $message='نوع نمایش تاریخ در تمام صفحات و خروجی‌ها ذخیره شد.';
+                    $exempt=$_POST['jalali_exempt_ids']??[];
+                    if (!is_array($exempt)) throw new DomainException('فیلدهای استثنا نامعتبر هستند.');
+                    $this->updateDatePreferences($mode,$exempt);
+                    $message='نوع نمایش تاریخ و استثناهای شمسی ذخیره شدند.';
                     break;
                 case 'save_title':
                     $this->updateTitle((string)($_POST['site_name']??''));$message='عنوان سایت ذخیره شد.';break;
@@ -176,6 +228,8 @@ final class SiteSettings
         $flash=$_SESSION['settings_flash']??null;
         unset($_SESSION['settings_flash']);
         $logo=self::logoUrl();
+        $dateFields=$this->dateFields();
+        $jalaliFields=date_jalali_exempt_ids();
         ?>
         <?php if(is_array($flash)):?><div class="alert alert-<?=e($flash[0])?>"><?=e($flash[1])?></div><?php endif;?>
         <div class="row row-cards">
@@ -190,8 +244,26 @@ final class SiteSettings
                   <option value="jalali" <?=date_display_mode()==='jalali'?'selected':''?>>شمسی</option>
                   <option value="gregorian" <?=date_display_mode()==='gregorian'?'selected':''?>>میلادی</option>
                 </select>
-                <p class="small text-secondary mt-2">این تنظیم بر تاریخ‌های جدول‌ها، داشبورد، مشتریان، فرم ویرایش رکورد، فایل اکسل و کارت PDF تأثیر دارد. اطلاعات اصلی دیتابیس تغییر نمی‌کنند.</p>
-                <button type="submit" class="btn btn-primary">ذخیره نوع تاریخ</button>
+                <p class="small text-secondary mt-2">تقویم عمومی برای فیلدهای تاریخ، جداول، اکسل و PDF. تاریخ ثبت سیستمی همیشه شمسی است؛ فیلدهای دلخواه زیر هم می‌توانند از حالت میلادی مستثنی شوند.</p>
+                <fieldset id="date-exception-fields" class="mt-3 border rounded p-3">
+                  <legend class="fs-5 fw-semibold mb-2">فیلدهایی که همیشه شمسی نمایش داده شوند</legend>
+                  <?php foreach ($dateFields as $dateField):
+                    $id=(int)$dateField['id'];
+                    $locked=$dateField['field_key']==='created_at';
+                    $selected=$locked || in_array($id,$jalaliFields,true); ?>
+                    <div class="form-check mb-2">
+                      <input type="checkbox" class="form-check-input" id="date-exception-<?=$id?>"
+                        name="jalali_exempt_ids[]" value="<?=$id?>"
+                        <?=$selected?'checked':''?> <?=$locked?'disabled':''?>>
+                      <label class="form-check-label" for="date-exception-<?=$id?>">
+                        <?=e((string)$dateField['label'])?>
+                        <?php if ($locked): ?><span class="badge bg-blue-lt">سیستمی · همیشه شمسی</span><?php endif; ?>
+                      </label>
+                    </div>
+                  <?php endforeach; ?>
+                  <p class="small text-secondary mb-0">این استثناها در جدول رکوردها، ویرایش رکورد، خروجی اکسل و کارت PDF اعمال می‌شوند. نام فیلدها قابل تغییر است اما انتخاب با شناسه ثابت فیلد ذخیره می‌شود. تاریخ ثبت مشتریان نیز همیشه شمسی است.</p>
+                </fieldset>
+                <button type="submit" class="btn btn-primary mt-3">ذخیره نوع تاریخ و استثناها</button>
               </form>
             </section>
             <section class="card mb-3"><div class="card-header"><h3 class="card-title">عنوان سایت</h3></div>

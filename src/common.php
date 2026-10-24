@@ -101,24 +101,50 @@ function date_display_mode(?string $override = null): string {
     }
     return $mode;
 }
+/**
+ * Explicit per-field Jalali exceptions, keyed by immutable record_fields.id.
+ * Created-at is handled as a mandatory system exception at call sites.
+ * The setter is used only after a validated, authenticated settings POST.
+ *
+ * @return int[]
+ */
+function date_jalali_exempt_ids(?array $override = null): array {
+    static $ids = null;
+    if ($override !== null) {
+        $ids = array_values(array_unique(array_map('intval',$override)));
+    }
+    if ($ids === null) {
+        $raw = json_decode(setting('date_jalali_exempt_ids','[]'),true);
+        $ids = is_array($raw) ? array_values(array_unique(array_filter(
+            $raw,static fn($id)=>is_int($id) && $id>0
+        ))) : [];
+    }
+    return $ids;
+}
+function date_field_mode(?int $fieldId = null, string $fieldKey = ''): string {
+    if ($fieldKey === 'created_at' || ($fieldId!==null && in_array($fieldId,date_jalali_exempt_ids(),true))) {
+        return 'jalali';
+    }
+    return date_display_mode();
+}
 /** Format a date-only ISO column without timezone shifts. */
-function display_date(?string $iso): string {
+function display_date(?string $iso, ?int $fieldId = null, string $fieldKey = ''): string {
     if ($iso === null || $iso === '') return '';
     $part = substr($iso,0,10);
     if (!preg_match('/^([0-9]{4})-([0-9]{2})-([0-9]{2})$/D',$part,$m) ||
         !checkdate((int)$m[2],(int)$m[3],(int)$m[1])) return '';
-    if (date_display_mode()==='gregorian') return str_replace('-','/',$part);
+    if (date_field_mode($fieldId,$fieldKey)==='gregorian') return str_replace('-','/',$part);
     require_once ROOT_PATH . '/src/vendor/jdf.php';
     [$jy,$jm,$jd] = gregorian_to_jalali((int)$m[1],(int)$m[2],(int)$m[3]);
     return sprintf('%04d/%02d/%02d',$jy,$jm,$jd);
 }
 /** Format a stored UTC datetime in the application's timezone & calendar. */
-function jdatetime(?string $utc, string $format = 'Y/m/d H:i'): string {
+function jdatetime(?string $utc, string $format = 'Y/m/d H:i', bool $forceJalali = false): string {
     if (!$utc) return '—';
     try {
         $dt = (new DateTimeImmutable($utc,new DateTimeZone('UTC')))
             ->setTimezone(new DateTimeZone(config()['APP_TZ']));
-        if (date_display_mode()==='gregorian') return $dt->format($format);
+        if (!$forceJalali && date_display_mode()==='gregorian') return $dt->format($format);
         require_once ROOT_PATH . '/src/vendor/jdf.php';
         return jdate($format,$dt->getTimestamp(),'',$dt->getTimezone()->getName(),'fa');
     } catch (Throwable $exception) { return '—'; }

@@ -69,7 +69,7 @@ final class RecordSpreadsheet
                     $type = $field['type'];
                     $raw = $row['values'][(int)$field['id']] ?? null;
                     $value = $raw === null ? '' : (string)$raw;
-                    if ($type === 'date' && $value !== '') $value=RecordManager::dateLabel($value);
+                    if ($type === 'date' && $value !== '') $value=RecordManager::dateLabel($value,(int)$field['id'],(string)$field['field_key']);
                     if ($type === 'boolean' && $value !== '') $value=$value === '1' ? 'بله' : 'خیر';
                     // Numeric types are exported as real numeric Excel cells when
                     // within Excel's 15-digit precision, otherwise exact text.
