@@ -196,10 +196,10 @@ try {
 
   // The offline HugeRTE must initialize and keep an editable native textarea.
   await page.goto(base + '/index.php?route=settings');
-  await page.waitForFunction(() => Boolean((window.hugeRTE || window.hugerte)?.get?.('commitment-html')));
+  await page.waitForFunction(() => Boolean((window.hugeRTE || window.hugerte)?.get?.('commitment-html')?.initialized));
   assert.equal(await page.locator('#commitment-editor-mode').inputValue(),'simple');
   await page.locator('#commitment-editor-mode').selectOption('advanced');
-  await page.waitForFunction(() => Boolean((window.hugeRTE || window.hugerte)?.get?.('commitment-html')));
+  await page.waitForFunction(() => Boolean((window.hugeRTE || window.hugerte)?.get?.('commitment-html')?.initialized));
   const selfHosted=await page.evaluate(() => performance.getEntriesByType('resource').filter(r=>r.name.includes('hugerte')).map(x=>x.name));
   assert.ok(selfHosted.length>0 && selfHosted.every(url=>new URL(url).origin===new URL(base).origin),
     'All editor assets load only from this host');
@@ -207,6 +207,7 @@ try {
     const editor=(window.hugeRTE || window.hugerte).get('commitment-html');
     editor.setContent('<h2>تعهدنامه مرورگر</h2><p><strong>آزمایش موفق</strong> چاپ PDF A4</p>');
     editor.save();
+    document.getElementById('commitment-html').value=editor.getContent({format:'html'});
   });
   assert.match(await page.locator('#commitment-html').inputValue(),/تعهدنامه مرورگر/,
     'editor.sync() transfers rich text into its textarea');
