@@ -176,9 +176,15 @@ document.addEventListener('DOMContentLoaded', () => {
   table.addEventListener('click', (event) => {
     const button = event.target.closest('button.apple-card-pdf');
     if (!button) return;
-    // The format is intentionally deferred until the user specifies the card
-    // design. Do not generate a misleading or unsecured PDF in the meantime.
-    window.alert('ساخت خروجی PDF این رکورد، پس از تعیین قالب Apple ID Card فعال خواهد شد.');
+    const id = button.dataset.recordId || '';
+    if (!/^[1-9][0-9]{0,17}$/.test(id)) return;
+    const form = document.getElementById('apple-card-pdf-form');
+    const secretOption = document.getElementById('apple-card-include-secrets');
+    document.getElementById('apple-card-pdf-id').value = id;
+    document.getElementById('apple-card-pdf-sensitive').value = secretOption.checked ? '1' : '0';
+    // Only a record identifier and CSRF token are sent. Sensitive fields are
+    // fetched exclusively on the server and never exposed to the report DOM.
+    form.requestSubmit();
   });
 
   refresh();
