@@ -127,7 +127,7 @@ final class RecordManager
             meta_key VARCHAR(60) PRIMARY KEY, meta_value VARCHAR(100) NOT NULL
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
         $defaults = [
-            ['created_at', 'تاریخ ثبت', 'date', 0, 1, 1, 1, 0],
+            ['created_at', 'تاریخ ثبت', 'date', 0, 1, 1, 1, 1],
             ['customer_name', 'نام مشتری', 'text', 1, 1, 1, 1, 1],
             ['mobile', 'موبایل', 'mobile', 2, 1, 1, 0, 1],
             ['apple_email', 'Apple ID', 'text', 3, 0, 1, 1, 0],
@@ -391,8 +391,17 @@ final class RecordManager
                 $q->execute([$customer,$appleEmail,$date === null ? null : $date . ' 12:00:00']);
                 $recordId = (int)$this->pdo->lastInsertId();
             } else {
-                $q = $this->pdo->prepare('UPDATE ' . $this->t('apple_records') . ' SET customer_id=?,apple_email=COALESCE(?,apple_email) WHERE id=?');
-                $q->execute([$customer,$appleEmail,$recordId]);
+                // Preserve legacy Apple ID if its field is disabled, but allow
+                // clearing it explicitly while the field remains active.
+                $appleActive = isset($f['apple_email']) && (int)$f['apple_email']['active'] === 1
+                    && $f['apple_email']['deleted_at'] === null;
+                if ($appleActive) {
+                    $q = $this->pdo->prepare('UPDATE ' . $this->t('apple_records') . ' SET customer_id=?,apple_email=? WHERE id=?');
+                    $q->execute([$customer,$appleEmail,$recordId]);
+                } else {
+                    $q = $this->pdo->prepare('UPDATE ' . $this->t('apple_records') . ' SET customer_id=? WHERE id=?');
+                    $q->execute([$customer,$recordId]);
+                }
             }
             $saveValue = $this->pdo->prepare('INSERT INTO ' . $this->t('record_values') . '
                 (record_id,field_id,value_text,value_decimal,value_date,value_bool) VALUES (?,?,?,?,?,?)
@@ -548,7 +557,10 @@ final class RecordManager
                     'apple_email' => $row['apple_email'],
                     default => null,
                 };
-                $row['values'][$id] = $values[(int)$row['id']][$id] ?? $fallback;
+                // A deliberately cleared (NULL) dynamic value must not resurrect
+                // the legacy column value. Only absent EAV rows use fallback.
+                $row['values'][$id] = array_key_exists($id, $values[(int)$row['id']] ?? [])
+                    ? $values[(int)$row['id']][$id] : $fallback;
             }
         }
         unset($row);
