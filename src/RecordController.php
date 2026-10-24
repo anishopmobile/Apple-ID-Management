@@ -24,6 +24,11 @@ final class RecordController
 
     public function dispatch(string $route): void
     {
+        if ($route === 'records_listing_api') {
+            if ($_SERVER['REQUEST_METHOD'] !== 'GET') self::json(['ok'=>false,'message'=>'روش درخواست نامعتبر است.'],405);
+            try { self::json(['ok'=>true,'listing'=>$this->manager->listing($_GET)]); }
+            catch (DomainException $ex) { self::json(['ok'=>false,'message'=>$ex->getMessage()],422); }
+        }
         if ($route === 'records_api') {
             if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'record') {
                 $id = filter_var($_GET['id'] ?? '', FILTER_VALIDATE_INT);
@@ -222,7 +227,7 @@ final class RecordController
           <button class="btn btn-primary flex-shrink-0" id="create-field">+ ایجاد فیلد جدید</button>
         </div>
         <section class="card"><div class="table-responsive">
-        <table class="table table-vcenter card-table"><thead><tr><th>ترتیب</th><th>نام نمایشی</th><th>نوع فیلد</th><th>الزامی</th><th>در جدول</th><th>قابل فیلتر</th><th>وضعیت</th><th>عملیات</th></tr></thead><tbody>
+        <table class="table table-vcenter card-table"><thead><tr><th>ترتیب</th><th>نام نمایشی</th><th>نوع فیلد</th><th>الزامی</th><th>در جدول</th><th>قابل فیلتر</th><th>وضعیت</th><th>عملیات</th></tr></thead><tbody id="record-table-body">
         <?php foreach ($fields as $f): ?>
         <tr><td><?=e((string)$f['sort_order'])?></td><td class="fw-semibold"><?=e($f['label'])?><?php if ((int)$f['is_system']): ?> <span class="badge bg-blue-lt">سیستمی</span><?php endif;?></td>
         <td><?= e(RecordManager::fieldTypes()[$f['type']]??$f['type'])?></td>
@@ -312,11 +317,11 @@ final class RecordController
           <button class="btn btn-primary" id="create-record" <?= $ready ? '' : 'disabled' ?>>+ ایجاد رکورد جدید</button>
           <form method="post" action="/index.php?route=records_export" class="m-0"><input type="hidden" name="_csrf" value="<?=e(csrf())?>"><button type="submit" class="btn btn-outline-success" <?= $ready ? '' : 'disabled' ?>>↓ خروجی اکسل (همه رکوردها)</button></form>
           <button type="button" class="btn btn-outline-primary" id="open-import" <?= $ready ? '' : 'disabled' ?>>↑ ورود از اکسل</button>
-          <span class="text-secondary small ms-auto">رکوردها: <?=e((string)$listing['total'])?></span>
+          <span class="text-secondary small ms-auto" id="record-total">رکوردها: <?=e((string)$listing['total'])?></span>
         </div>
         <section class="card mb-3"><div class="card-header"><h3 class="card-title">فیلتر و مرتب‌سازی پیشرفته</h3></div><div class="card-body">
         <form method="get" action="/index.php" id="record-filters"><input type="hidden" name="route" value="records"><div class="row g-3">
-        <?php foreach ($fields as $f): if (!(int)$f['filterable']) continue;
+        <?php foreach ($fields as $f): if (!(int)$f['filterable'] && !in_array($f['field_key'],['customer_name','mobile','apple_email'],true)) continue;
             $id=(int)$f['id']; $type=$f['type'];
         ?>
           <?php if (in_array($type,['number','money','date'],true)): ?>
@@ -329,21 +334,21 @@ final class RecordController
             <option value="<?=e((string)$value)?>" <?= (string)($_GET['filter'][$id]??'')===(string)$value?'selected':''?>><?=e((string)$label)?></option>
             <?php endforeach; ?></select></div>
           <?php else: ?>
-          <div class="col-sm-6 col-lg-3"><label class="form-label"><?=e($f['label'])?></label><input class="form-control" name="filter[<?=$id?>]" value="<?=e((string)($_GET['filter'][$id]??''))?>" maxlength="120"></div>
+          <div class="col-sm-6 col-lg-3"><label class="form-label"><?=e($f['label'])?></label><input class="form-control" name="filter[<?=$id?>]" value="<?=e((string)($_GET['filter'][$id]??''))?>" maxlength="120" <?=in_array($f['field_key'],['customer_name','mobile','apple_email'],true)?'data-live-record-search="1"':''?>></div>
           <?php endif; ?>
         <?php endforeach; ?>
         <div class="col-sm-6 col-lg-3"><label class="form-label">تعداد در صفحه</label><select class="form-select" name="per_page" id="per-page">
         <?php foreach ([25,50,100] as $n): ?><option value="<?=$n?>" <?= $n===$listing['per_page']?'selected':'' ?>><?=$n?> رکورد</option><?php endforeach;?></select></div>
         <div class="col-12 d-flex gap-2"><button class="btn btn-primary" type="submit">اعمال فیلتر</button><a class="btn btn-outline-secondary" href="/index.php?route=records">پاک کردن فیلترها</a></div>
-        </div></form></div></section>
-        <section class="card"><div class="table-responsive"><table class="table table-vcenter card-table text-nowrap">
+        </div></form><div id="record-live-status" aria-live="polite" class="text-secondary small mt-2"></div></div></section>
+        <section class="card" id="record-grid"><div class="table-responsive"><table class="table table-vcenter card-table text-nowrap">
           <thead><tr><th>#</th>
           <?php foreach ($visible as $f):
               $params=$_GET; $params['route']='records'; $params['sort']=$f['id'];
               $same=(string)($_GET['sort']??'')===(string)$f['id'];
               $params['direction']=$same && ($_GET['direction']??'')==='asc'?'desc':'asc';
               $params['page']=1; ?>
-              <th><a href="/index.php?<?=e(http_build_query($params))?>"><?=e($f['label'])?><?= $same ? (($_GET['direction']??'')==='asc'?' ↑':' ↓'):'' ?></a></th>
+              <th><a data-sort-field="<?=e((string)$f['id'])?>" data-sort-label="<?=e($f['label'])?>" href="/index.php?<?=e(http_build_query($params))?>"><?=e($f['label'])?><?= $same ? (($_GET['direction']??'')==='asc'?' ↑':' ↓'):'' ?></a></th>
           <?php endforeach;?>
           <th>عملیات</th></tr></thead><tbody>
           <?php foreach ($listing['rows'] as $record): ?><tr><td class="text-secondary">#<?=e((string)$record['id'])?></td>
@@ -363,11 +368,11 @@ final class RecordController
           <?php if (!$listing['rows']): ?><tr><td class="empty-row text-center text-secondary" colspan="<?=count($visible)+2?>">رکوردی مطابق فیلترها وجود ندارد.</td></tr><?php endif;?>
           </tbody></table></div>
           <div class="card-footer d-flex flex-wrap justify-content-between align-items-center gap-2">
-            <span class="text-secondary">صفحه <?=e((string)$listing['page'])?> از <?=e((string)$listing['pages'])?> · مجموع <?=e((string)$listing['total'])?> رکورد</span>
+            <span class="text-secondary" id="record-page-info">صفحه <?=e((string)$listing['page'])?> از <?=e((string)$listing['pages'])?> · مجموع <?=e((string)$listing['total'])?> رکورد</span>
             <div class="btn-group">
               <?php foreach ([-1,1] as $delta):
                   $params=$_GET; $params['route']='records'; $params['page']=$listing['page']+$delta; $enabled=$params['page']>=1 && $params['page']<=$listing['pages']; ?>
-                <a class="btn btn-outline-secondary <?= $enabled?'':'disabled' ?>" href="<?= $enabled?'/index.php?'.e(http_build_query($params)):'#' ?>" <?= $enabled?'':'aria-disabled="true"' ?>><?= $delta<0?'صفحه قبل':'صفحه بعد' ?></a>
+                <a data-record-page="<?=e((string)$params['page'])?>" class="btn btn-outline-secondary <?= $enabled?'':'disabled' ?>" href="<?= $enabled?'/index.php?'.e(http_build_query($params)):'#' ?>" <?= $enabled?'':'aria-disabled="true"' ?>><?= $delta<0?'صفحه قبل':'صفحه بعد' ?></a>
               <?php endforeach;?>
             </div>
           </div></section>
