@@ -216,14 +216,33 @@ try {
   assert.ok(await page.locator('#apple-card-rows tr[data-record-id]').count()>25,
     'Up to 100 records can be shown on a single page');
 
-  const placeholder = page.waitForEvent('dialog');
-  const pdfClick = page.locator('#apple-card-rows button.apple-card-pdf').first().click();
-  const dialog = await placeholder;
-  assert.match(dialog.message(), /پس از تعیین قالب Apple ID Card/,
-    'PDF action explains that the requested card layout is not implemented yet');
-  await dialog.accept();
-  await pdfClick;
-  console.log('[browser] Reports > Apple ID Card: live three-field search, ASC/DESC, 25/50/100, next page and PDF placeholder: PASS');
+  // Intercept requestSubmit only for browser behavior checks: the actual
+  // authenticated PDF endpoint and geometry are exercised in the PHP/curl
+  // smoke tests. This prevents the test browser from opening downloads.
+  await page.evaluate(() => {
+    document.querySelector('#apple-card-pdf-form').requestSubmit = () => {
+      const form=document.querySelector('#apple-card-pdf-form');
+      window.__cardPdfRequest = Object.fromEntries(new FormData(form));
+    };
+  });
+  const requestedId=await page.locator('#apple-card-rows button.apple-card-pdf').first().getAttribute('data-record-id');
+  await page.locator('#apple-card-rows button.apple-card-pdf').first().click();
+  const safeRequest=await page.evaluate(() => window.__cardPdfRequest);
+  assert.equal(safeRequest.record_id,requestedId,
+    'PDF request selects precisely the clicked row');
+  assert.equal(safeRequest.include_sensitive,'0','Secrets hidden by default');
+  assert.ok(typeof safeRequest._csrf==='string' && safeRequest._csrf.length>=32,
+    'PDF POST request sends administrator CSRF token');
+  assert.equal(Object.keys(safeRequest).sort().join(','),
+    '_csrf,include_sensitive,record_id','No password or answer in client PDF request');
+  await page.locator('#apple-card-include-secrets').check();
+  await page.locator('#apple-card-rows button.apple-card-pdf').first().click();
+  const revealed=await page.evaluate(() => window.__cardPdfRequest);
+  assert.equal(revealed.include_sensitive,'1','Explicit opt-in requests sensitive data');
+  assert.equal(revealed.record_id,requestedId,'Opt-in does not change selected record');
+  assert.equal(await page.evaluate(() => window.__cardPageAlive),'persistent',
+    'PDF buttons do not trigger a report page refresh');
+  console.log('[browser] Reports > Apple ID Card: live search, ASC/DESC, pagination and safe POST PDF actions: PASS');
 
   await page.goto(base + '/index.php?route=backup');
   assert.equal(await page.locator('#backup-directory').count(),1,'Backup folder input exists');
