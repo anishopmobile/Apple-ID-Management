@@ -190,7 +190,7 @@ try {
         <script src="/assets/vendor/apexcharts/apexcharts.min.js" defer></script>
         <script src="/assets/js/app.js" defer></script>
         <?php if ($route === 'customers_export'): ?>
-        <script src="/assets/js/customers-export.js" defer></script>
+        <script src="/assets/js/customers-export.js?v=<?=e((string)filemtime(__DIR__ . '/assets/js/customers-export.js'))?>" defer></script>
         <?php endif; ?>
         <?php if ($route === 'customers'): ?>
         <script src="/assets/js/customers.js" defer></script>
