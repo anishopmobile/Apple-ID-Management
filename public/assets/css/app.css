@@ -41,3 +41,23 @@ button, input, select, textarea, .btn { font-family: inherit; }
 @media (min-width: 992px) { .app-shell { padding-right: 250px; } .app-sidebar { position: fixed; right: 0; top: 0; bottom: 0; width: 250px; } }
 @media (max-width: 991.98px) { .app-sidebar .navbar-brand { padding-inline: 12px; } .hide-small { display: none; } .app-sidebar .nav-link { margin-inline: 0; } }
 @media (max-width: 576px) { .metric-card .h1 { font-size: 2.1rem; } .step { font-size: 12px; padding: 10px 5px; } .page-body { padding-top: 1rem; } }
+
+
+/* Dynamic records UI */
+.app-sidebar .nav-submenu { border-right: 1px solid rgba(255,255,255,.15); margin: 0 35px 10px 0; padding-right: 6px; }
+.app-sidebar .nav-subitem { font-size: .86rem; padding: 8px 14px; margin: 2px 0; }
+.page-body .table th a { color: #264785; font-weight: 700; text-decoration: none; }
+.page-body .table th a:hover { color: #1d4ed8; }
+.record-control { min-width: 0; }
+.record-control .field-error:not(:empty) { display: block; min-height: 1rem; }
+.record-control input, .record-control select, .record-control textarea { width: 100%; }
+#import-preview .table td, #import-preview .table th { max-width: 290px; overflow-wrap: anywhere; }
+#import-preview .table th { background: #f1f5fc; }
+[data-hcg-select] { min-height: 38px; }
+.persian-datepicker-container { z-index: 2100 !important; }
+.modal-dialog-scrollable .modal-body { overflow-x: visible; }
+@media (max-width: 576px) {
+  .record-control { flex: 0 0 100%; max-width: 100%; }
+  .card .card-header, .card .card-body { padding: 1rem; }
+  .page-body .table { min-width: 650px; }
+}
