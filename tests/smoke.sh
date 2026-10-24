@@ -65,6 +65,38 @@ grep -q 'id="dashboard-chart"' "$TMP"
 grep -q 'آنی شاپ' "$TMP"
 grep -q 'مشتریان' "$TMP"
 echo '[smoke] login, remember cookie and authenticated dashboard passed'
+
+php tests/records_integration.php
+curl -fsS -b "$COOKIE" -c "$COOKIE" "$BASE/index.php?route=records_fields" >"$TMP"
+grep -q 'ایجاد فیلد جدید' "$TMP"
+grep -q 'فیلد تست' "$TMP"
+curl -fsS -b "$COOKIE" -c "$COOKIE" "$BASE/index.php?route=records" >"$TMP"
+grep -q 'ایجاد رکورد جدید' "$TMP"
+grep -q 'ورود از اکسل' "$TMP"
+grep -q 'خروجی اکسل' "$TMP"
+echo '[smoke] dynamic record field pages and server integration passed'
+
+TOKEN="$(grep -oP 'name="_csrf" value="\K[^"]+' "$TMP" | head -1)"
+curl -sS -b "$COOKIE" -c "$COOKIE" --data-urlencode "_csrf=$TOKEN" \
+  --data-urlencode 'action=field_save' --data-urlencode 'label=فیلد ثبت با API' \
+  --data-urlencode 'type=text' --data-urlencode 'max_length=100' \
+  --data-urlencode 'sort_order=120' --data-urlencode 'active=1' \
+  --data-urlencode 'show_in_table=1' "$BASE/index.php?route=records_api" >"$TMP"
+php -r '$j=json_decode(file_get_contents($argv[1]),true); if(empty($j["ok"])) exit(1);' "$TMP"
+curl -sS -b "$COOKIE" -c "$COOKIE" --data-urlencode "_csrf=$TOKEN" \
+  --data-urlencode 'action=record_save' "$BASE/index.php?route=records_api" >"$TMP"
+php -r '$j=json_decode(file_get_contents($argv[1]),true); if(($j["ok"]??null)!==false || empty($j["fields"])) exit(1);' "$TMP"
+RECORD_ID="$(php -r 'require "src/common.php";echo db()->query("SELECT MAX(id) FROM ".table("apple_records"))->fetchColumn();')"
+curl -sS -b "$COOKIE" -c "$COOKIE" \
+  "$BASE/index.php?route=records_api&action=record&id=$RECORD_ID" >"$TMP"
+php -r '$j=json_decode(file_get_contents($argv[1]),true); if(empty($j["ok"]) || empty($j["record"]["values"])) exit(1);' "$TMP"
+curl -sS -b "$COOKIE" -c "$COOKIE" --data-urlencode "_csrf=$TOKEN" \
+  --data-urlencode 'action=record_delete' --data-urlencode "id=$RECORD_ID" \
+  "$BASE/index.php?route=records_api" >"$TMP"
+php -r '$j=json_decode(file_get_contents($argv[1]),true); if(empty($j["ok"])) exit(1);' "$TMP"
+curl -fsS -b "$COOKIE" -c "$COOKIE" "$BASE/index.php" >"$TMP"
+grep -q 'id="dashboard-chart"' "$TMP"
+echo '[smoke] AJAX field creation, record input validation, record loading/deletion and dashboard passed'
 TOKEN="$(grep -oP 'name="_csrf" value="\K[^"]+' "$TMP" | head -1)"
 curl -sS -b "$COOKIE" -c "$COOKIE" -D "$HEAD" -o /dev/null \
   --data-urlencode "_csrf=$TOKEN" "$BASE/index.php?route=logout"
