@@ -22,6 +22,9 @@ async function openModal(page, button, selector) {
 async function closeModal(page, selector) {
   await page.locator(selector + ' [data-bs-dismiss="modal"]').first().click();
   await page.locator(selector).waitFor({ state: 'hidden', timeout: 10000 });
+  // The dialog hides before Bootstrap's backdrop fade-out animation completes.
+  // Wait for actual backdrop removal instead of asserting prematurely.
+  await page.locator('.modal-backdrop').waitFor({ state: 'detached', timeout: 10000 });
   assert.equal(await page.locator('.modal-backdrop').count(), 0, 'Closing releases the backdrop');
 }
 
