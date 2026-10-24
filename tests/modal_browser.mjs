@@ -137,6 +137,94 @@ try {
   assert.equal(await page.locator('#settings-new-password').count(),1,'New password required');
   console.log('[browser] secure site settings forms available: PASS');
 
+  // Apple ID Card is a new Reports submenu, not a customer aggregation:
+  // one record equals one table row, with independently searched Apple IDs.
+  await page.goto(base + '/index.php?route=reports_apple_id_card');
+  assert.equal(await page.locator('.nav-subitem[href="/index.php?route=reports_apple_id_card"]').count(), 1,
+    'Reports submenu contains an Apple ID Card link');
+  assert.equal(await page.locator('#apple-card-rows tr[data-record-id]').count(), 25,
+    'Initial report is server-rendered with exactly 25 recent records');
+  assert.equal(await page.locator('#apple-card-page-size').inputValue(), '25');
+  await page.evaluate(() => { window.__cardPageAlive = 'persistent'; });
+  const cardQuery = page.locator('#apple-card-search');
+  await cardQuery.fill('card-one@example.test');
+  await page.waitForFunction(() =>
+    document.querySelector('#apple-card-status')?.textContent?.includes('1 رکورد مطابق جستجو')
+  );
+  assert.equal(await page.locator('#apple-card-rows tr[data-record-id]').count(),1,
+    'Apple ID search matches an individual record');
+  assert.match(await page.locator('#apple-card-rows tr[data-record-id]').first().innerText(),
+    /card-one@example.test/);
+
+  await cardQuery.fill('نام کارت اختصاصی');
+  await page.waitForFunction(() =>
+    document.querySelector('#apple-card-status')?.textContent?.includes('1 رکورد مطابق جستجو')
+  );
+  assert.match(await page.locator('#apple-card-rows tr[data-record-id]').first().innerText(),
+    /نام کارت اختصاصی/, 'Per-record customer name can be found in one search');
+  await cardQuery.fill('۰۹۱۲۳۴۵۶۷۸۹');
+  await page.waitForFunction(() => {
+    const status = document.querySelector('#apple-card-status')?.textContent || '';
+    return /[2-9]\d* رکورد مطابق جستجو/.test(status);
+  });
+  assert.equal(await page.evaluate(() => window.__cardPageAlive), 'persistent',
+    'Live name/mobile/Apple ID searches do not reload the page');
+
+  await cardQuery.fill('card-');
+  await page.waitForFunction(() =>
+    document.querySelector('#apple-card-status')?.textContent?.includes('2 رکورد مطابق جستجو')
+  );
+  const sortApple = page.locator('#apple-card-table button[data-sort="apple_id"]');
+  await sortApple.click();
+  await page.waitForFunction(() =>
+    document.querySelector('#apple-card-table button[data-sort="apple_id"]')?.getAttribute('aria-pressed') === 'true' &&
+    document.querySelector('#apple-card-rows tr[data-record-id] td:nth-child(4)')?.textContent?.includes('card-one@example.test')
+  );
+  assert.equal(await page.locator('#apple-card-rows tr[data-record-id]').count(),2);
+  await sortApple.click();
+  await page.waitForFunction(() =>
+    document.querySelector('#apple-card-rows tr[data-record-id] td:nth-child(4)')?.textContent?.includes('card-two@example.test')
+  );
+  assert.equal(await page.evaluate(() => window.__cardPageAlive), 'persistent',
+    'Column sorting switches ASC/DESC over AJAX without full reload');
+
+  await cardQuery.fill('');
+  await page.waitForFunction(() => {
+    const info=document.querySelector('#apple-card-page-info')?.textContent || '';
+    return info.includes('صفحه 1 از') &&
+      document.querySelectorAll('#apple-card-rows tr[data-record-id]').length === 25;
+  });
+  await page.locator('#apple-card-pages').getByRole('button', {name:'2',exact:true}).click();
+  await page.waitForFunction(() =>
+    document.querySelector('#apple-card-page-info')?.textContent?.includes('صفحه 2 از')
+  );
+  assert.ok(await page.locator('#apple-card-rows tr[data-record-id]').count()>0,
+    'Second page contains remaining report records');
+  assert.equal(await page.evaluate(() => window.__cardPageAlive),'persistent',
+    'AJAX page navigation does not reload the browser');
+
+  await page.locator('#apple-card-page-size').selectOption('50');
+  await page.waitForFunction(() =>
+    document.querySelector('#apple-card-page-info')?.textContent?.includes('صفحه 1 از 1') &&
+    document.querySelectorAll('#apple-card-rows tr[data-record-id]').length > 25
+  );
+  await page.locator('#apple-card-page-size').selectOption('100');
+  await page.waitForFunction(() =>
+    document.querySelector('#apple-card-page-size')?.value === '100' &&
+    document.querySelector('#apple-card-status')?.textContent?.includes('رکورد مطابق')
+  );
+  assert.ok(await page.locator('#apple-card-rows tr[data-record-id]').count()>25,
+    'Up to 100 records can be shown on a single page');
+
+  const placeholder = page.waitForEvent('dialog');
+  const pdfClick = page.locator('#apple-card-rows button.apple-card-pdf').first().click();
+  const dialog = await placeholder;
+  assert.match(dialog.message(), /پس از تعیین قالب Apple ID Card/,
+    'PDF action explains that the requested card layout is not implemented yet');
+  await dialog.accept();
+  await pdfClick;
+  console.log('[browser] Reports > Apple ID Card: live three-field search, ASC/DESC, 25/50/100, next page and PDF placeholder: PASS');
+
   await page.goto(base + '/index.php?route=backup');
   assert.equal(await page.locator('#backup-directory').count(),1,'Backup folder input exists');
   assert.equal(await page.locator('#restore-form input[type=file]').count(),1,'Restore upload exists');

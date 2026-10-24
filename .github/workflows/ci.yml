@@ -44,6 +44,7 @@ jobs:
           node --check public/assets/js/customers.js
           node --check public/assets/js/customers-export.js
           node --check public/assets/js/records-grid.js
+          node --check public/assets/js/apple-id-card.js
           node --check public/assets/js/backup.js
           node --check tests/modal_browser.mjs
           node --check public/assets/vendor/hcg/hcg-select.js

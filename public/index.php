@@ -19,6 +19,7 @@ try {
         'customers' => ['مدیریت مشتریان', 'users'],
         'customers_export' => ['خروجی اکسل مشتریان', 'database'],
         'reports' => ['گزارشات', 'chart'],
+        'reports_apple_id_card' => ['Apple ID Card', 'id'],
         'settings' => ['تنظیمات سایت', 'settings'],
         'backup' => ['پشتیبان‌گیری و بازیابی', 'database'],
     ];
@@ -137,6 +138,11 @@ try {
             }
         }
     }
+    if ($route === 'reports_apple_id_card_api') {
+        require_admin();
+        require_once dirname(__DIR__) . '/src/AppleIdCardReport.php';
+        (new AppleIdCardReport())->api();
+    }
     if ($route === 'customers_api') {
         require_admin();
         require_once dirname(__DIR__) . '/src/RecordManager.php';
@@ -166,6 +172,11 @@ try {
         require_once dirname(__DIR__) . '/src/CustomerDirectory.php';
         $customersController = new CustomerDirectory();
     }
+    $appleCardController = null;
+    if ($route === 'reports_apple_id_card') {
+        require_once dirname(__DIR__) . '/src/AppleIdCardReport.php';
+        $appleCardController = new AppleIdCardReport();
+    }
     $settingsController = null;
     if ($route === 'settings') {
         require_once dirname(__DIR__) . '/src/SiteSettings.php';
@@ -189,6 +200,9 @@ try {
         <script src="/assets/vendor/tabler/tabler.min.js" defer></script>
         <script src="/assets/vendor/apexcharts/apexcharts.min.js" defer></script>
         <script src="/assets/js/app.js" defer></script>
+        <?php if ($route === 'reports_apple_id_card'): ?>
+        <script src="/assets/js/apple-id-card.js?v=<?=e((string)filemtime(__DIR__ . '/assets/js/apple-id-card.js'))?>" defer></script>
+        <?php endif; ?>
         <?php if ($route === 'customers_export'): ?>
         <script src="/assets/js/customers-export.js?v=<?=e((string)filemtime(__DIR__ . '/assets/js/customers-export.js'))?>" defer></script>
         <?php endif; ?>
@@ -225,7 +239,16 @@ try {
                   <a class="nav-link nav-subitem <?= $route === 'records'?'active':'' ?>" href="/index.php?route=records">ایجاد رکورد</a>
                 </div>
               </li>
-              <?php foreach ($routes as $slug => $meta): if (in_array($slug,['dashboard','records','records_fields','customers_export'],true)) continue; ?>
+              <li class="nav-item">
+                <a class="nav-link <?=in_array($route,['reports','reports_apple_id_card'],true)?'active':''?>" href="/index.php?route=reports">
+                  <span class="nav-link-icon">▤</span><span class="nav-link-title">گزارشات</span>
+                </a>
+                <div class="nav-submenu">
+                  <a class="nav-link nav-subitem <?= $route === 'reports_apple_id_card'?'active':'' ?>"
+                    href="/index.php?route=reports_apple_id_card">Apple ID Card</a>
+                </div>
+              </li>
+              <?php foreach ($routes as $slug => $meta): if (in_array($slug,['dashboard','records','records_fields','customers_export','reports','reports_apple_id_card'],true)) continue; ?>
               <li class="nav-item"><a class="nav-link <?= $route === $slug ? 'active' : '' ?>" href="/index.php?route=<?= e($slug) ?>"><span class="nav-link-icon"><?= e(['customers' => '♙', 'reports' => '▤', 'settings' => '⚙', 'backup' => '◫'][$slug]) ?></span><span class="nav-link-title"><?= e($meta[0]) ?></span></a></li>
               <?php endforeach; ?>
             </ul></div>
@@ -307,6 +330,8 @@ try {
             unset($_SESSION['export_error']);
         }
         $export->render();
+    } elseif ($appleCardController !== null) {
+        $appleCardController->render();
     } elseif ($settingsController !== null) {
         $settingsController->render();
     } elseif ($backupController !== null) {

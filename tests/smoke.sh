@@ -69,6 +69,7 @@ echo '[smoke] login, remember cookie and authenticated dashboard passed'
 php tests/records_integration.php
 php tests/customers_backup_integration.php
 php tests/customer_export_settings.php
+php tests/apple_id_card_integration.php
 
 curl -fsS -b "$COOKIE" -c "$COOKIE" "$BASE/index.php?route=records_fields" >"$TMP"
 grep -q 'ایجاد فیلد جدید' "$TMP"
@@ -77,6 +78,17 @@ curl -fsS -b "$COOKIE" -c "$COOKIE" "$BASE/index.php?route=records" >"$TMP"
 grep -q 'ایجاد رکورد جدید' "$TMP"
 grep -q 'ورود از اکسل' "$TMP"
 grep -q 'خروجی اکسل' "$TMP"
+curl -fsS -b "$COOKIE" -c "$COOKIE" "$BASE/index.php?route=reports_apple_id_card" >"$TMP"
+grep -q 'id="apple-card-search"' "$TMP"
+grep -q 'id="apple-card-table"' "$TMP"
+grep -q 'data-record-id=' "$TMP"
+curl -fsS -b "$COOKIE" -c "$COOKIE" "$BASE/index.php?route=reports_apple_id_card_api&per_page=25" >"$TMP"
+php -r '$j=json_decode(file_get_contents($argv[1]),true); if (!is_array($j) || empty($j["ok"]) || count($j["rows"])!==25 || $j["pages"]<2) exit(1);' "$TMP"
+METHOD_CODE="$(curl -sS -o /dev/null -w '%{http_code}' -b "$COOKIE" -c "$COOKIE" -X POST "$BASE/index.php?route=reports_apple_id_card_api")"
+test "$METHOD_CODE" = '405'
+echo '[smoke] authenticated Apple ID Card page/API, 25-row pagination and rejected POST passed'
+# Keep the authenticated HTML page in TMP: later CSRF/logout checks read it.
+curl -fsS -b "$COOKIE" -c "$COOKIE" "$BASE/index.php?route=records" >"$TMP"
 echo '[smoke] dynamic record field pages and server integration passed'
 node tests/modal_browser.mjs "$BASE"
 
