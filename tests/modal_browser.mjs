@@ -60,7 +60,7 @@ try {
   await page.locator('#customer-page-size').selectOption('25');
   await page.waitForFunction(() => {
     const el=document.querySelector('#customer-page-info');
-    return el?.textContent?.includes('صفحه 1 از') && !document.querySelector('#customer-prev')?.disabled===false;
+    return el?.textContent?.includes('صفحه 1 از') && document.querySelector('#customer-prev')?.disabled === true;
   });
   assert.equal(await page.locator('#customer-rows tr').count(),25,'25 latest customer rows visible');
   await page.locator('#customer-next').click();
