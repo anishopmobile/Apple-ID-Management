@@ -72,7 +72,17 @@ card_pdf_assert($builder->dataForRecord($id2)['password']==='SECOND-SECRET-2026'
 date_display_mode('gregorian');
 card_pdf_assert($builder->dataForRecord($id1)['birthday']==='2026/10/24',
     'PDF birthday follows Gregorian setting');
+// Field-specific Jalali exception must override the site-wide Gregorian
+// mode in both the data mapping and the actual printed card.
+date_jalali_exempt_ids([(int)$ids['birthday']]);
+card_pdf_assert($builder->dataForRecord($id1)['birthday']==='1405/08/02',
+    'selected birthday date field remains Jalali under Gregorian mode');
+$exemptPdf=$builder->generate($id1,false);
+date_jalali_exempt_ids([]);
+card_pdf_assert($builder->dataForRecord($id1)['birthday']==='2026/10/24',
+    'unchecking Jalali exception restores Gregorian PDF birthday');
 $gregorianPdf=$builder->generate($id1,false);
+card_pdf_assert($gregorianPdf!==$exemptPdf,'PDF bytes change for date-field exception without changing stored values');
 date_display_mode('jalali');
 card_pdf_assert($builder->dataForRecord($id1)['birthday']==='1405/08/02',
     'PDF birthday follows Jalali setting');
