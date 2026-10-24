@@ -176,7 +176,6 @@ try {
   assert.equal(backend.record.values[dateFieldId], '2026-10-24',
     'Gregorian input must persist correctly to the normalized MySQL DATE');
   await openModal(page, '#open-import', '#import-modal');
-  await openModal(page, '#open-import', '#import-modal');
   await closeModal(page, '#import-modal');
   console.log('[browser] create-record and Excel import modals open and close correctly');
 
