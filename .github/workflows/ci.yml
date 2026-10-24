@@ -46,6 +46,8 @@ jobs:
           node --check public/assets/js/records-grid.js
           node --check public/assets/js/apple-id-card.js
           node --check public/assets/js/backup.js
+          node --check public/assets/js/date-exceptions.js
+          node --check public/assets/js/commitment-editor.js
           node --check tests/modal_browser.mjs
           node --check public/assets/vendor/hcg/hcg-select.js
       - name: PHP dependencies
@@ -57,6 +59,9 @@ jobs:
           test -s public/assets/vendor/tabler/tabler.rtl.min.css
           test -s public/assets/vendor/vazirmatn/Vazirmatn-Regular.woff2
           test -s storage/fonts/Vazirmatn-Regular.ttf
+          test -s public/assets/vendor/hugerte/hugerte.min.js
+          test -s public/assets/vendor/hugerte/themes/silver/theme.min.js
+          test -s public/assets/vendor/hugerte/skins/ui/oxide/skin.min.css
       - name: Install Chromium for real UI regression checks
         run: npx playwright install --with-deps chromium
       - name: Install PDF geometry and rendering verification tools
@@ -71,6 +76,14 @@ jobs:
         env:
           CARD_PDF_VISUAL_PREVIEW: "1"
         run: bash tests/smoke.sh
+      - name: Upload synthetic commitment A4 preview (visual QA)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: commitment-a4-visual-preview
+          path: storage/commitment-preview-ci.png
+          if-no-files-found: error
+          retention-days: 7
       - name: Upload synthetic masked card preview (visual QA)
         if: success()
         uses: actions/upload-artifact@v4

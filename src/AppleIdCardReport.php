@@ -116,8 +116,10 @@ final class AppleIdCardReport
         exit;
     }
 
-    public function render(): void
+    public function render(string $kind = 'card'): void
     {
+        if (!in_array($kind,['card','commitment'],true)) throw new InvalidArgumentException('Unknown report type');
+        $isCommitment=$kind==='commitment';
         $result = $this->listing($_GET);
         $columns = ['customer_name'=>'نام مشتری','mobile'=>'موبایل مشتری','apple_id'=>'Apple ID'];
         ?>
@@ -154,7 +156,10 @@ final class AppleIdCardReport
               role="status" aria-live="polite"><?=e((string)$result['total'])?> رکورد ثبت‌شده وجود دارد.</div>
           </div>
         </section>
-        <section class="card" id="apple-card-table">
+        <section class="card" id="apple-card-table"
+          data-report-kind="<?=e($kind)?>"
+          data-report-page="<?=e($isCommitment?'reports_commitment':'reports_apple_id_card')?>"
+          data-report-api="<?=e($isCommitment?'reports_commitment_api':'reports_apple_id_card_api')?>">
           <div class="table-responsive">
             <table class="table table-vcenter card-table text-nowrap">
               <thead><tr><th>#</th>
@@ -192,13 +197,17 @@ final class AppleIdCardReport
             </nav>
           </div>
         </section>
-        <form id="apple-card-pdf-form" action="/index.php?route=reports_apple_id_card_pdf"
+        <form id="apple-card-pdf-form" action="/index.php?route=<?=$isCommitment?'reports_commitment_pdf':'reports_apple_id_card_pdf'?>"
           method="post" target="_blank" class="d-none">
           <input type="hidden" name="_csrf" value="<?=e(csrf())?>">
           <input type="hidden" name="record_id" id="apple-card-pdf-id" value="">
           <input type="hidden" name="include_sensitive" id="apple-card-pdf-sensitive" value="0">
         </form>
-        <p class="text-secondary small mt-3">فایل PDF هر رکورد با ابعاد واقعی ۸۵ × ۵۵ میلی‌متر تولید می‌شود. برای چاپ بدون تغییر اندازه، گزینه Actual Size / اندازه واقعی را انتخاب کنید.</p>
+        <?php if ($isCommitment): ?>
+          <p class="text-secondary small mt-3">PDF گزارش تعهد روی کاغذ A4 عمودی، با کارت اصلی ۸۵×۵۵ میلی‌متر در بالا، لوگوی سایت و متن ذخیره‌شده تعهدنامه تهیه می‌شود.</p>
+        <?php else: ?>
+          <p class="text-secondary small mt-3">فایل PDF هر رکورد با ابعاد واقعی ۸۵ × ۵۵ میلی‌متر تولید می‌شود. برای چاپ بدون تغییر اندازه، گزینه Actual Size / اندازه واقعی را انتخاب کنید.</p>
+        <?php endif; ?>
         <?php
     }
 }

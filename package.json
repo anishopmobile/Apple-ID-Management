@@ -12,7 +12,8 @@
     "jquery": "3.7.1",
     "persian-date": "1.1.0",
     "persian-datepicker": "1.2.0",
-    "vazirmatn": "33.0.3"
+    "vazirmatn": "33.0.3",
+    "hugerte": "1.0.14"
   },
   "devDependencies": {
     "playwright": "1.56.1"

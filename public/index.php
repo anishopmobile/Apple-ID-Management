@@ -20,6 +20,7 @@ try {
         'customers_export' => ['خروجی اکسل مشتریان', 'database'],
         'reports' => ['گزارشات', 'chart'],
         'reports_apple_id_card' => ['Apple ID Card', 'id'],
+        'reports_commitment' => ['گزارش تعهد', 'file'],
         'settings' => ['تنظیمات سایت', 'settings'],
         'backup' => ['پشتیبان‌گیری و بازیابی', 'database'],
     ];
@@ -138,7 +139,7 @@ try {
             }
         }
     }
-    if ($route === 'reports_apple_id_card_pdf') {
+    if (in_array($route,['reports_apple_id_card_pdf','reports_commitment_pdf'],true)) {
         // Sensitive output: authenticated administrator + POST/CSRF only.
         require_admin();
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -153,17 +154,26 @@ try {
             exit('شناسه رکورد معتبر نیست.');
         }
         $include = ($_POST['include_sensitive'] ?? '0') === '1';
-        require_once dirname(__DIR__) . '/src/AppleIdCardPdf.php';
         $id = (int)$requested;
+        if ($route==='reports_commitment_pdf' && trim(setting('commitment_html',''))==='') {
+            http_response_code(422);
+            exit('ابتدا متن تعهدنامه را در تنظیمات سایت ذخیره کنید.');
+        }
         try {
-            AppleIdCardPdf::send($id,$include);
+            if ($route==='reports_commitment_pdf') {
+                require_once dirname(__DIR__) . '/src/CommitmentPdf.php';
+                CommitmentPdf::send($id,$include);
+            } else {
+                require_once dirname(__DIR__) . '/src/AppleIdCardPdf.php';
+                AppleIdCardPdf::send($id,$include);
+            }
         } catch (DomainException $ex) {
             // Never include private record values in error pages.
             http_response_code(404);
             exit('رکورد قابل صدور یافت نشد.');
         }
     }
-    if ($route === 'reports_apple_id_card_api') {
+    if (in_array($route,['reports_apple_id_card_api','reports_commitment_api'],true)) {
         require_admin();
         require_once dirname(__DIR__) . '/src/AppleIdCardReport.php';
         (new AppleIdCardReport())->api();
@@ -198,7 +208,7 @@ try {
         $customersController = new CustomerDirectory();
     }
     $appleCardController = null;
-    if ($route === 'reports_apple_id_card') {
+    if (in_array($route,['reports_apple_id_card','reports_commitment'],true)) {
         require_once dirname(__DIR__) . '/src/AppleIdCardReport.php';
         $appleCardController = new AppleIdCardReport();
     }
@@ -225,8 +235,13 @@ try {
         <script src="/assets/vendor/tabler/tabler.min.js" defer></script>
         <script src="/assets/vendor/apexcharts/apexcharts.min.js" defer></script>
         <script src="/assets/js/app.js" defer></script>
-        <?php if ($route === 'reports_apple_id_card'): ?>
+        <?php if (in_array($route,['reports_apple_id_card','reports_commitment'],true)): ?>
         <script src="/assets/js/apple-id-card.js?v=<?=e((string)filemtime(__DIR__ . '/assets/js/apple-id-card.js'))?>" defer></script>
+        <?php endif; ?>
+        <?php if ($route === 'settings'): ?>
+        <script src="/assets/vendor/hugerte/hugerte.min.js" defer></script>
+        <script src="/assets/js/commitment-editor.js?v=<?=e((string)filemtime(__DIR__ . '/assets/js/commitment-editor.js'))?>" defer></script>
+        <script src="/assets/js/date-exceptions.js?v=<?=e((string)filemtime(__DIR__ . '/assets/js/date-exceptions.js'))?>" defer></script>
         <?php endif; ?>
         <?php if ($route === 'customers_export'): ?>
         <script src="/assets/js/customers-export.js?v=<?=e((string)filemtime(__DIR__ . '/assets/js/customers-export.js'))?>" defer></script>
@@ -265,15 +280,17 @@ try {
                 </div>
               </li>
               <li class="nav-item">
-                <a class="nav-link <?=in_array($route,['reports','reports_apple_id_card'],true)?'active':''?>" href="/index.php?route=reports">
+                <a class="nav-link <?=in_array($route,['reports','reports_apple_id_card','reports_commitment'],true)?'active':''?>" href="/index.php?route=reports">
                   <span class="nav-link-icon">▤</span><span class="nav-link-title">گزارشات</span>
                 </a>
                 <div class="nav-submenu">
                   <a class="nav-link nav-subitem <?= $route === 'reports_apple_id_card'?'active':'' ?>"
                     href="/index.php?route=reports_apple_id_card">Apple ID Card</a>
+                  <a class="nav-link nav-subitem <?= $route === 'reports_commitment'?'active':'' ?>"
+                    href="/index.php?route=reports_commitment">گزارش تعهد</a>
                 </div>
               </li>
-              <?php foreach ($routes as $slug => $meta): if (in_array($slug,['dashboard','records','records_fields','customers_export','reports','reports_apple_id_card'],true)) continue; ?>
+              <?php foreach ($routes as $slug => $meta): if (in_array($slug,['dashboard','records','records_fields','customers_export','reports','reports_apple_id_card','reports_commitment'],true)) continue; ?>
               <li class="nav-item"><a class="nav-link <?= $route === $slug ? 'active' : '' ?>" href="/index.php?route=<?= e($slug) ?>"><span class="nav-link-icon"><?= e(['customers' => '♙', 'reports' => '▤', 'settings' => '⚙', 'backup' => '◫'][$slug]) ?></span><span class="nav-link-title"><?= e($meta[0]) ?></span></a></li>
               <?php endforeach; ?>
             </ul></div>
@@ -356,7 +373,7 @@ try {
         }
         $export->render();
     } elseif ($appleCardController !== null) {
-        $appleCardController->render();
+        $appleCardController->render($route==='reports_commitment'?'commitment':'card');
     } elseif ($settingsController !== null) {
         $settingsController->render();
     } elseif ($backupController !== null) {

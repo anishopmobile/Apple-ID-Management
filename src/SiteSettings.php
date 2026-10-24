@@ -108,6 +108,29 @@ final class SiteSettings
         date_jalali_exempt_ids($selected);
     }
 
+    public function updateCommitment(string $html, string $mode): void
+    {
+        require_once __DIR__.'/CommitmentText.php';
+        if (!in_array($mode,['simple','advanced'],true)) {
+            throw new DomainException('حالت ویرایشگر باید ساده یا پیشرفته باشد.');
+        }
+        $safe=CommitmentText::clean($html);
+        if (mb_strlen(CommitmentText::plain($safe))>10000) {
+            throw new DomainException('متن تعهدنامه حداکثر ۱۰ هزار نویسه است.');
+        }
+        $this->pdo->beginTransaction();
+        try {
+            $stmt=$this->pdo->prepare('INSERT INTO '.table('settings').'(name,value) VALUES (?,?)
+                ON DUPLICATE KEY UPDATE value=VALUES(value)');
+            $stmt->execute(['commitment_html',$safe]);
+            $stmt->execute(['commitment_editor_mode',$mode]);
+            $this->pdo->commit();
+        } catch(Throwable $exception) {
+            if($this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $exception;
+        }
+    }
+
     public function updatePassword(array $request, int $adminId): void
     {
         $current=$request['current_password']??null;
@@ -198,10 +221,29 @@ final class SiteSettings
                 case 'save_date_mode':
                     $mode=$_POST['date_display_mode']??null;
                     if (!is_string($mode)) throw new DomainException('نوع نمایش تاریخ نامعتبر است.');
-                    $exempt=$_POST['jalali_exempt_ids']??[];
-                    if (!is_array($exempt)) throw new DomainException('فیلدهای استثنا نامعتبر هستند.');
+                    $json=$_POST['jalali_exempt_json']??null;
+                    if (!is_string($json) || strlen($json)>4000) {
+                        throw new DomainException('فهرست استثناهای تاریخ معتبر نیست.');
+                    }
+                    try {
+                        $exempt=json_decode($json,true,32,JSON_THROW_ON_ERROR);
+                    } catch(JsonException $ex) {
+                        throw new DomainException('ساختار انتخاب استثناهای تاریخ معتبر نیست.');
+                    }
+                    if (!is_array($exempt) || !array_is_list($exempt)) {
+                        throw new DomainException('ساختار انتخاب استثناهای تاریخ معتبر نیست.');
+                    }
                     $this->updateDatePreferences($mode,$exempt);
                     $message='نوع نمایش تاریخ و استثناهای شمسی ذخیره شدند.';
+                    break;
+                case 'save_commitment':
+                    $html=$_POST['commitment_html']??null;
+                    $editorMode=$_POST['commitment_editor_mode']??null;
+                    if(!is_string($html) || !is_string($editorMode)) {
+                        throw new DomainException('متن تعهدنامه یا حالت ویرایشگر نامعتبر است.');
+                    }
+                    $this->updateCommitment($html,$editorMode);
+                    $message='متن تعهدنامه و حالت ویرایشگر ذخیره شدند.';
                     break;
                 case 'save_title':
                     $this->updateTitle((string)($_POST['site_name']??''));$message='عنوان سایت ذخیره شد.';break;
@@ -236,9 +278,10 @@ final class SiteSettings
           <div class="col-12 col-xl-6">
             <section class="card mb-3" id="date-display-settings">
               <div class="card-header"><h3 class="card-title">نوع نمایش فیلد تاریخ</h3></div>
-              <form method="post" action="/index.php?route=settings" class="card-body">
+              <form method="post" action="/index.php?route=settings" class="card-body" id="date-exception-form" autocomplete="off">
                 <input type="hidden" name="_csrf" value="<?=e(csrf())?>">
                 <input type="hidden" name="action" value="save_date_mode">
+                <input type="hidden" name="jalali_exempt_json" id="date-exception-payload" value="[]">
                 <label for="settings-date-mode" class="form-label">تقویم نمایش تاریخ</label>
                 <select id="settings-date-mode" name="date_display_mode" class="form-select">
                   <option value="jalali" <?=date_display_mode()==='jalali'?'selected':''?>>شمسی</option>
@@ -252,8 +295,8 @@ final class SiteSettings
                     $locked=$dateField['field_key']==='created_at';
                     $selected=$locked || in_array($id,$jalaliFields,true); ?>
                     <div class="form-check mb-2">
-                      <input type="checkbox" class="form-check-input" id="date-exception-<?=$id?>"
-                        name="jalali_exempt_ids[]" value="<?=$id?>"
+                      <input type="checkbox" class="form-check-input date-exemption-input" id="date-exception-<?=$id?>"
+                        value="<?=$id?>"
                         <?=$selected?'checked':''?> <?=$locked?'disabled':''?>>
                       <label class="form-check-label" for="date-exception-<?=$id?>">
                         <?=e((string)$dateField['label'])?>
@@ -263,6 +306,7 @@ final class SiteSettings
                   <?php endforeach; ?>
                   <p class="small text-secondary mb-0">این استثناها در جدول رکوردها، ویرایش رکورد، خروجی اکسل و کارت PDF اعمال می‌شوند. نام فیلدها قابل تغییر است اما انتخاب با شناسه ثابت فیلد ذخیره می‌شود. تاریخ ثبت مشتریان نیز همیشه شمسی است.</p>
                 </fieldset>
+                <p id="date-exception-count" class="small text-secondary mt-2" role="status" aria-live="polite"></p>
                 <button type="submit" class="btn btn-primary mt-3">ذخیره نوع تاریخ و استثناها</button>
               </form>
             </section>
@@ -289,6 +333,30 @@ final class SiteSettings
                 <button class="btn btn-outline-danger" type="submit">حذف لوگو</button>
               </form><?php endif;?>
             </div></section>
+          </div>
+          <div class="col-12">
+            <section class="card" id="commitment-editor-settings">
+              <div class="card-header"><h3 class="card-title">متن تعهدنامه برای گزارش تعهد</h3></div>
+              <form method="post" action="/index.php?route=settings" class="card-body" id="commitment-settings-form">
+                <input type="hidden" name="_csrf" value="<?=e(csrf())?>">
+                <input type="hidden" name="action" value="save_commitment">
+                <div class="row g-3 mb-3">
+                  <div class="col-md-6">
+                    <label for="commitment-editor-mode" class="form-label">نوع ویرایشگر</label>
+                    <?php $editorMode=setting('commitment_editor_mode','simple'); ?>
+                    <select id="commitment-editor-mode" name="commitment_editor_mode" class="form-select">
+                      <option value="simple" <?=$editorMode==='simple'?'selected':''?>>ساده</option>
+                      <option value="advanced" <?=$editorMode==='advanced'?'selected':''?>>پیشرفته</option>
+                    </select>
+                  </div>
+                </div>
+                <label for="commitment-html" class="form-label">متن تعهدنامه (قابل قالب‌بندی)</label>
+                <textarea id="commitment-html" name="commitment_html" class="form-control" dir="rtl"
+                  rows="12" maxlength="48000" data-editor-mode="<?=e($editorMode)?>"><?=e(setting('commitment_html',''))?></textarea>
+                <p class="small text-secondary mt-2">متن ذخیره‌شده زیر کارت در PDF A4 گزارش تعهد چاپ می‌شود. فقط قالب‌بندی متن و فهرست مجاز است؛ تصاویر، کد و لینک‌های خارجی ذخیره نمی‌شوند. در صورت نبود ویرایشگر، کادر متن قابل استفاده باقی می‌ماند.</p>
+                <button type="submit" class="btn btn-primary">ذخیره متن تعهدنامه</button>
+              </form>
+            </section>
           </div>
           <div class="col-12 col-xl-6">
             <section class="card"><div class="card-header"><h3 class="card-title">تغییر رمز عبور مدیر</h3></div>

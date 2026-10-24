@@ -138,16 +138,18 @@ try {
   console.log('[browser] secure site settings forms available: PASS');
   assert.equal(await page.locator('#settings-date-mode').inputValue(),'jalali',
     'Existing users retain the default Jalali display setting');
-  const allExceptions=page.locator('#date-exception-fields input[name="jalali_exempt_ids[]"]');
+  const allExceptions=page.locator('#date-exception-fields input.date-exemption-input');
   assert.ok(await allExceptions.count()>1,'Existing date fields listed in settings');
   const locked=allExceptions.locator('xpath=../input[@disabled]');
   const systemDate=page.locator('#date-exception-fields input[disabled]');
   assert.equal(await systemDate.count(),1,'System created-at exception is mandatory');
   assert.equal(await systemDate.isChecked(),true,'Created-at must always stay Jalali');
-  const optional=page.locator('#date-exception-fields input[name="jalali_exempt_ids[]"]:not([disabled])');
+  const optional=page.locator('#date-exception-fields input.date-exemption-input:not([disabled])');
   assert.ok(await optional.count()>0,'Custom date fields can be individually exempted');
   const chosenId=await optional.first().getAttribute('value');
   await optional.first().check();
+  assert.deepEqual(JSON.parse(await page.locator('#date-exception-payload').inputValue()),[chosenId],
+    'Payload contains exactly the checked checkbox, not every field');
   await page.locator('#settings-date-mode').selectOption('gregorian');
   await page.locator('#date-display-settings button[type=submit]').click();
   assert.equal(await page.locator('#settings-date-mode').inputValue(),'gregorian',
@@ -177,16 +179,62 @@ try {
   assert.match(await page.locator('main').innerText(), /شمسی/,
     'Dashboard recent-record registration date stays Jalali');
   await page.goto(base + '/index.php?route=settings');
-  await page.locator('#date-exception-fields input[value="'+chosenId+'"]').uncheck();
+  await page.locator('label[for="date-exception-'+chosenId+'"]').click();
+  assert.deepEqual(JSON.parse(await page.locator('#date-exception-payload').inputValue()),[],
+    'Clicking a single label unchecks only that field, serializing an empty array');
   await page.locator('#date-display-settings button[type=submit]').click();
   assert.equal(await page.locator('#date-exception-fields input[value="'+chosenId+'"]').isChecked(),false,
     'Unchecking custom date exception is saved');
+  assert.equal(await page.locator('#date-exception-payload').inputValue(),'[]',
+    'Empty date exception list remains empty after reload');
   assert.equal(await page.locator('#date-exception-fields input[disabled]').isChecked(),true,
     'Permanent system exception cannot be unchecked');
   await page.locator('#settings-date-mode').selectOption('jalali');
   await page.locator('#date-display-settings button[type=submit]').click();
   assert.equal(await page.locator('#settings-date-mode').inputValue(),'jalali');
   console.log('[browser] system date always Jalali, custom exceptions selectable/persistent with Gregorian mode, record AJAX and dashboard: PASS');
+
+  // The offline HugeRTE must initialize and keep an editable native textarea.
+  await page.goto(base + '/index.php?route=settings');
+  await page.waitForFunction(() => Boolean((window.hugeRTE || window.hugerte)?.get?.('commitment-html')?.initialized));
+  assert.equal(await page.locator('#commitment-editor-mode').inputValue(),'simple');
+  await page.locator('#commitment-editor-mode').selectOption('advanced');
+  await page.waitForFunction(() => Boolean((window.hugeRTE || window.hugerte)?.get?.('commitment-html')?.initialized));
+  const selfHosted=await page.evaluate(() => performance.getEntriesByType('resource').filter(r=>r.name.includes('hugerte')).map(x=>x.name));
+  assert.ok(selfHosted.length>0 && selfHosted.every(url=>new URL(url).origin===new URL(base).origin),
+    'All editor assets load only from this host');
+  await page.evaluate(() => {
+    const editor=(window.hugeRTE || window.hugerte).get('commitment-html');
+    editor.setContent('<h2>تعهدنامه مرورگر</h2><p><strong>آزمایش موفق</strong> چاپ PDF A4</p>');
+    editor.save();
+    document.getElementById('commitment-html').value=editor.getContent({format:'html'});
+  });
+  assert.match(await page.locator('#commitment-html').inputValue(),/تعهدنامه مرورگر/,
+    'editor.sync() transfers rich text into its textarea');
+  await page.locator('#commitment-settings-form button[type=submit]').click();
+  console.log('[browser commitment save]', (await page.locator('.alert').allInnerTexts()).slice(0,2));
+  assert.equal(await page.locator('#commitment-editor-mode').inputValue(),'advanced',
+    'Editor complexity mode persists');
+  const savedCommitment=await page.locator('#commitment-html').inputValue();
+  assert.match(savedCommitment,/تعهدنامه مرورگر/,'Formatted commitment text saves');
+
+  await page.goto(base + '/index.php?route=reports_commitment');
+  assert.equal(await page.locator('.nav-subitem[href="/index.php?route=reports_commitment"]').count(),1,
+    'New reports submenu renders');
+  assert.equal(await page.locator('#apple-card-table').getAttribute('data-report-kind'),'commitment',
+    'Report reuses the same grid');
+  assert.equal(await page.locator('#apple-card-rows tr[data-record-id]').count(),25,
+    'Commitment report server paging matches Apple Card');
+  await page.locator('#apple-card-search').fill('card-one@example.test');
+  await page.waitForFunction(()=>document.querySelector('#apple-card-status')?.textContent?.includes('1 رکورد مطابق'));
+  assert.equal(await page.locator('#apple-card-rows tr[data-record-id]').count(),1,
+    'Commitment AJAX search works without reload');
+  assert.match(page.url(),/route=reports_commitment/,'AJAX report retains commitment route');
+  await page.locator('#apple-card-search').fill('');
+  await page.waitForFunction(()=>document.querySelector('#apple-card-rows tr[data-record-id]')!==null);
+  const commitmentAction=await page.locator('#apple-card-pdf-form').getAttribute('action');
+  assert.equal(commitmentAction,'/index.php?route=reports_commitment_pdf');
+  console.log('[browser] self-hosted HugeRTE simple/advanced editor and commitment AJAX report: PASS');
 
   // Apple ID Card is a new Reports submenu, not a customer aggregation:
   // one record equals one table row, with independently searched Apple IDs.

@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
+import { copyFileSync, mkdirSync, existsSync, readdirSync, cpSync } from 'node:fs';
 import { join, basename, resolve } from 'node:path';
 
 const root = resolve(import.meta.dirname, '..');
@@ -45,4 +45,16 @@ for (const ext of ['woff2', 'ttf']) {
   }
 }
 copy('vazirmatn/OFL.txt', 'vazirmatn/OFL.txt');
+// HugeRTE (Tabler's documented WYSIWYG editor): distribute all of its own
+// skins, icons, themes, models and plugins locally, never request a CDN.
+copy('hugerte/hugerte.min.js', 'hugerte/hugerte.min.js');
+copy('hugerte/license.txt', 'hugerte/license.txt');
+for (const part of ['icons','models','plugins','skins','themes']) {
+  const source=join(root,'node_modules','hugerte',part);
+  if(!existsSync(source)) throw new Error('HugeRTE asset directory missing: '+part);
+  const target=dest('hugerte/'+part);
+  mkdirSync(target,{recursive:true});
+  cpSync(source,target,{recursive:true});
+}
+
 console.log('All runtime assets are self-hosted. No CDN is required.');
