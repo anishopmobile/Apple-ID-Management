@@ -47,21 +47,39 @@ final class RecordManager
         return preg_match('/^09\d{9}$/D', $normalized) ? $normalized : null;
     }
 
+    /**
+     * Accept either calendar from the existing dual-calendar datepicker.
+     * YYYY-MM-DD is the unambiguous Gregorian/ISO storage format.
+     * For YYYY/MM/DD, modern years >= 1600 are Gregorian; years 1200–1599
+     * are Jalali. This avoids requiring a particular datepicker mode.
+     */
     public static function normalizeDate(string $raw): ?string
     {
         $raw = trim(self::digits($raw));
-        if ($raw === '') return null;
-        if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/D', $raw, $m)) {
-            return checkdate((int)$m[2], (int)$m[3], (int)$m[1]) ? $raw : null;
+        if (!preg_match('~^([0-9]{4})([-/])([0-9]{1,2})\2([0-9]{1,2})$~D', $raw, $m)) {
+            return null;
         }
-        if (!preg_match('/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/D', $raw, $m)) return null;
-        $y = (int)$m[1]; $mo = (int)$m[2]; $day = (int)$m[3];
-        if ($y < 1200 || $y > 1600 || $mo < 1 || $mo > 12 || $day < 1 || $day > 31) return null;
+        $year = (int)$m[1];
+        $month = (int)$m[3];
+        $day = (int)$m[4];
+
+        // ISO hyphenated dates are always Gregorian, including historical
+        // years. The local calendar picker uses slash-separated dates.
+        if ($m[2] === '-' || $year >= 1600) {
+            if ($year < 1000 || $year > 9999 || !checkdate($month, $day, $year)) {
+                return null;
+            }
+            return sprintf('%04d-%02d-%02d', $year, $month, $day);
+        }
+        if ($year < 1200 || $year > 1599 || $month < 1 || $month > 12 ||
+            $day < 1 || $day > 31) {
+            return null;
+        }
         require_once __DIR__ . '/vendor/jdf.php';
-        [$gy, $gm, $gd] = jalali_to_gregorian($y, $mo, $day);
+        [$gy, $gm, $gd] = jalali_to_gregorian($year, $month, $day);
         if (!checkdate((int)$gm, (int)$gd, (int)$gy)) return null;
         [$jy, $jm, $jd] = gregorian_to_jalali((int)$gy, (int)$gm, (int)$gd);
-        if ($jy !== $y || $jm !== $mo || $jd !== $day) return null;
+        if ($jy !== $year || $jm !== $month || $jd !== $day) return null;
         return sprintf('%04d-%02d-%02d', $gy, $gm, $gd);
     }
 
@@ -333,7 +351,7 @@ final class RecordManager
                     break;
                 case 'date':
                     $date = self::normalizeDate($input);
-                    if ($date === null) $errors[(string)$id] = 'تاریخ شمسی معتبر (مانند ۱۴۰۵/۰۸/۰۱) وارد کنید.';
+                    if ($date === null) $errors[(string)$id] = 'تاریخ معتبر وارد کنید؛ شمسی (مثلاً ۱۴۰۵/۰۸/۰۲) یا میلادی (مثلاً ۲۰۲۶/۱۰/۲۴).';
                     else $input = $date;
                     break;
                 case 'mobile':
