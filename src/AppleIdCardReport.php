@@ -140,6 +140,16 @@ final class AppleIdCardReport
                 </select>
               </div>
             </div>
+            <div class="mt-3 p-2 border rounded bg-light">
+              <label class="form-check mb-0" for="apple-card-include-secrets">
+                <input type="checkbox" class="form-check-input" id="apple-card-include-secrets" value="1">
+                <span class="form-check-label fw-semibold">نمایش رمز عبور و پاسخ‌های امنیتی در فایل PDF</span>
+              </label>
+              <p class="small text-secondary mb-0 mt-2">
+                حالت پیش‌فرض امن است: رمز عبور و پاسخ‌ها مخفی‌اند. در صورت فعال‌کردن این گزینه،
+                اطلاعات حساس رکورد انتخاب‌شده داخل فایل دانلودی قرار می‌گیرد؛ از فایل محافظت کنید.
+              </p>
+            </div>
             <div id="apple-card-status" class="small text-secondary mt-3"
               role="status" aria-live="polite"><?=e((string)$result['total'])?> رکورد ثبت‌شده وجود دارد.</div>
           </div>
@@ -182,7 +192,13 @@ final class AppleIdCardReport
             </nav>
           </div>
         </section>
-        <p class="text-secondary small mt-3">دکمه دریافت PDF برای هر رکورد آماده است؛ ساخت فایل PDF پس از تعیین قالب کارت فعال خواهد شد.</p>
+        <form id="apple-card-pdf-form" action="/index.php?route=reports_apple_id_card_pdf"
+          method="post" target="_blank" class="d-none">
+          <input type="hidden" name="_csrf" value="<?=e(csrf())?>">
+          <input type="hidden" name="record_id" id="apple-card-pdf-id" value="">
+          <input type="hidden" name="include_sensitive" id="apple-card-pdf-sensitive" value="0">
+        </form>
+        <p class="text-secondary small mt-3">فایل PDF هر رکورد با ابعاد واقعی ۸۵ × ۵۵ میلی‌متر تولید می‌شود. برای چاپ بدون تغییر اندازه، گزینه Actual Size / اندازه واقعی را انتخاب کنید.</p>
         <?php
     }
 }
