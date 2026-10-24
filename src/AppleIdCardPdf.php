@@ -183,7 +183,9 @@ final class AppleIdCardPdf
 
         $pdf=new \Mpdf\Mpdf([
             'mode'=>'utf-8',
-            'format'=>[self::WIDTH_MM,self::HEIGHT_MM],
+            // mPDF applies landscape rotation to the supplied base dimensions.
+            // Give portrait base [55,85], producing physical MediaBox [85,55].
+            'format'=>[self::HEIGHT_MM,self::WIDTH_MM],
             'orientation'=>'L',
             'margin_left'=>0,'margin_right'=>0,'margin_top'=>0,'margin_bottom'=>0,
             'margin_header'=>0,'margin_footer'=>0,
