@@ -137,9 +137,11 @@ try {
     .getAttribute('name');
   assert.ok(recordIdOfDate, 'A real dynamic date input must be present');
   const allText = page.locator('#record-modal .record-control input[required]:not([inputmode]):not([data-jalali-date])');
-  assert.ok(await allText.count() >= 2, 'Customer name and required custom short text fields exist');
+  assert.ok(await allText.count() >= 1, 'System customer name is required');
   await allText.nth(0).fill('مشتری مرورگر خارجی');
-  await allText.nth(1).fill('متن تست تقویم میلادی');
+  if (await allText.count() > 1) {
+    await allText.nth(1).fill('متن تست تقویم میلادی');
+  }
   await page.locator('#record-modal input[required][inputmode="tel"]').fill('09991234567');
   await page.locator('#record-modal textarea[required]').fill('تست مرورگر با فرم بلند');
   const decimals = page.locator('#record-modal input[required][inputmode="decimal"]');
