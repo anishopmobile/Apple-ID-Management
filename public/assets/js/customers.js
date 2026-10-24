@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
           rowCell(customer.full_name),
           rowCell(customer.mobile || '—', 'ltr-input'),
           rowCell(String(customer.record_count)),
-          rowCell(customer.created_jalali || '—')
+          rowCell(customer.created_display || customer.created_jalali || '—')
         );
         rows.append(row);
       }
