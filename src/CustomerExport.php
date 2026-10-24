@@ -164,16 +164,21 @@ final class CustomerExport
             <div class="row g-3">
             <?php foreach ($fields as $field): ?>
               <div class="col-sm-6 col-lg-4">
-                <label class="form-check">
-                  <input class="form-check-input export-field-check" type="checkbox" name="fields[]" value="<?=e((string)$field['id'])?>" <?=in_array($field['field_key'],['customer_name','mobile'],true)?'checked':''?>>
-                  <span class="form-check-label"><?=e($field['label'])?><?php if (!(int)$field['active']): ?> <small class="text-secondary">(غیرفعال)</small><?php endif;?></span>
-                </label>
+                <div class="form-check customer-export-choice">
+                  <input class="form-check-input export-field-check" type="checkbox"
+                    id="customer-export-field-<?=e((string)$field['id'])?>"
+                    name="fields[]" value="<?=e((string)$field['id'])?>"
+                    <?=in_array($field['field_key'],['customer_name','mobile'],true)?'checked':''?>>
+                  <label class="form-check-label" for="customer-export-field-<?=e((string)$field['id'])?>">
+                    <?=e($field['label'])?><?php if (!(int)$field['active']): ?> <small class="text-secondary">(غیرفعال)</small><?php endif;?>
+                  </label>
+                </div>
               </div>
             <?php endforeach;?>
             </div>
           </div>
           <div class="card-footer d-flex flex-wrap justify-content-between align-items-center gap-3">
-            <span class="text-secondary small" id="export-selected-count">۲ فیلد انتخاب شده است.</span>
+            <span class="text-secondary small" id="export-selected-count" role="status" aria-live="polite">۲ فیلد انتخاب شده است.</span>
             <button class="btn btn-success" id="export-submit" type="submit">تهیه خروجی اکسل</button>
           </div>
         </form>
