@@ -81,8 +81,10 @@ try {
         exec('pdftotext -enc UTF-8 '.escapeshellarg($path).' '.escapeshellarg($extracted).' 2>&1',$out,$rc);
         commit_check($rc===0 && is_file($extracted),'text extraction from A4 PDF');
         $text=file_get_contents($extracted);
-        commit_check(str_contains($text,'ACCOUNT CARD') && str_contains($text,'تعهدنامه'),
-            'original Apple ID card and saved Persian commitment are present in A4');
+        commit_check(str_contains($text,'ACCOUNT CARD'),
+            'imported original card text must be extractable; extracted: '.mb_substr($text,0,700));
+        commit_check(str_contains($text,'تعهدنامه'),
+            'sanitized Persian commitment must be extractable; extracted: '.mb_substr($text,0,700));
         commit_check(!str_contains($text,'EVIL_MARKER'),'malicious editor text is never printed');
         $images=[];$code=0;
         exec('pdfimages -list '.escapeshellarg($path).' 2>&1',$images,$code);
