@@ -61,7 +61,7 @@ function config(): array {
     return $config;
 }
 function table(string $name): string {
-    static $allowed = ['admins', 'settings', 'customers', 'apple_records', 'login_attempts', 'remember_tokens', 'record_deletions'];
+    static $allowed = ['admins', 'settings', 'customers', 'apple_records', 'login_attempts', 'remember_tokens', 'record_deletions', 'record_values', 'record_fields', 'record_meta', 'customer_mobile_keys'];
     if (!in_array($name, $allowed, true)) { throw new InvalidArgumentException('جدول نامعتبر است'); }
     return chr(96) . config()['DB_PREFIX'] . $name . chr(96);
 }
