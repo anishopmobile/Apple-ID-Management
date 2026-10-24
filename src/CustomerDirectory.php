@@ -9,7 +9,6 @@ final class CustomerDirectory
 
     public function listing(array $request): array
     {
-        $by = ($request['by'] ?? 'name') === 'mobile' ? 'mobile' : 'name';
         $q = is_string($request['q'] ?? null) ? trim($request['q']) : '';
         if (mb_strlen($q) > 100) throw new DomainException('عبارت جستجو باید حداکثر ۱۰۰ کاراکتر باشد.');
         $perPage = filter_var($request['per_page'] ?? 25, FILTER_VALIDATE_INT);
@@ -22,20 +21,14 @@ final class CustomerDirectory
         $params = [];
         $where = '';
         if ($q !== '') {
-            if ($by === 'mobile') {
-                // Allow partial phone numbers, including Persian/Arabic digits.
-                // Stored legacy mobiles remain searchable even if noncanonical.
-                $q = preg_replace('/[\s()\-]+/u', '', RecordManager::digits($q)) ?? $q;
-                if (str_starts_with($q, '+98')) $q = '0' . substr($q, 3);
-                if (str_starts_with($q, '0098')) $q = '0' . substr($q, 4);
-                if (!preg_match('/^[+0-9]{1,100}$/D', $q)) throw new DomainException('برای جستجوی موبایل فقط رقم وارد کنید.');
-                $expr = 'REPLACE(REPLACE(REPLACE(COALESCE(c.mobile, \'\'), \' \', \'\'), \'-\', \'\'), \'+\', \'\')';
-                $q = ltrim($q, '+');
-            } else {
-                $expr = 'c.full_name';
-            }
-            $where = " WHERE $expr LIKE ? ESCAPE '!'";
-            $params[] = '%' . str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $q) . '%';
+            $escape = static fn(string $value): string => str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $value);
+            $mobile = preg_replace('/[\s()\-]+/u', '', RecordManager::digits($q)) ?? $q;
+            if (str_starts_with($mobile, '+98')) $mobile = '0' . substr($mobile, 3);
+            if (str_starts_with($mobile, '0098')) $mobile = '0' . substr($mobile, 4);
+            $mobile = ltrim($mobile, '+');
+            $normalizedStored = "REPLACE(REPLACE(REPLACE(COALESCE(c.mobile,''),' ',''),'-',''),'+','')";
+            $where = " WHERE (c.full_name LIKE ? ESCAPE '!' OR $normalizedStored LIKE ? ESCAPE '!')";
+            $params = ['%' . $escape($q) . '%', '%' . $escape($mobile) . '%'];
         }
         $count = $this->pdo->prepare('SELECT COUNT(*) FROM ' . $customers . ' c' . $where);
         $count->execute($params);
@@ -63,7 +56,7 @@ final class CustomerDirectory
             $row['created_jalali'] = jdatetime((string)$row['created_at'], 'Y/m/d');
         }
         unset($row);
-        return compact('rows', 'total', 'page', 'pages', 'perPage', 'by', 'q');
+        return compact('rows', 'total', 'page', 'pages', 'perPage', 'q');
     }
 
     public function api(): never
@@ -85,17 +78,17 @@ final class CustomerDirectory
         ?>
         <section class="card mb-3"><div class="card-body">
           <div class="row g-3 align-items-end">
-            <div class="col-12 col-md-3"><label for="customer-search-by" class="form-label">جستجو بر اساس</label>
-              <select id="customer-search-by" class="form-select"><option value="name">نام مشتری</option><option value="mobile">شماره موبایل</option></select>
-            </div>
-            <div class="col-12 col-md-6"><label for="customer-search-query" class="form-label">جستجوی لحظه‌ای</label>
+            <div class="col-12 col-lg-6"><label for="customer-search-query" class="form-label">جستجوی لحظه‌ای</label>
               <input id="customer-search-query" class="form-control" type="search" autocomplete="off"
-                placeholder="نام مشتری را بنویسید..." maxlength="100" aria-controls="customer-list" aria-describedby="customer-live-status">
+                placeholder="نام مشتری یا شماره موبایل مشتری را وارد کنید" maxlength="100" aria-controls="customer-list" aria-describedby="customer-live-status">
             </div>
-            <div class="col-12 col-md-3"><label for="customer-page-size" class="form-label">تعداد نمایش در صفحه</label>
+            <div class="col-6 col-lg-3"><label for="customer-page-size" class="form-label">تعداد نمایش در صفحه</label>
               <select id="customer-page-size" class="form-select">
                 <option value="25">۲۵ مشتری</option><option value="50">۵۰ مشتری</option><option value="100">۱۰۰ مشتری</option>
               </select>
+            </div>
+            <div class="col-6 col-lg-3"><label class="form-label" for="customers-excel-link">خروجی اکسل</label>
+              <a id="customers-excel-link" class="btn btn-outline-success w-100" href="/index.php?route=customers_export">انتخاب فیلدها و خروجی Excel</a>
             </div>
           </div>
           <div id="customer-live-status" role="status" aria-live="polite" class="mt-3 text-secondary small">
