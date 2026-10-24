@@ -87,6 +87,8 @@ php -r '$j=json_decode(file_get_contents($argv[1]),true); if (!is_array($j) || e
 METHOD_CODE="$(curl -sS -o /dev/null -w '%{http_code}' -b "$COOKIE" -c "$COOKIE" -X POST "$BASE/index.php?route=reports_apple_id_card_api")"
 test "$METHOD_CODE" = '405'
 echo '[smoke] authenticated Apple ID Card page/API, 25-row pagination and rejected POST passed'
+# Keep the authenticated HTML page in TMP: later CSRF/logout checks read it.
+curl -fsS -b "$COOKIE" -c "$COOKIE" "$BASE/index.php?route=records" >"$TMP"
 echo '[smoke] dynamic record field pages and server integration passed'
 node tests/modal_browser.mjs "$BASE"
 
