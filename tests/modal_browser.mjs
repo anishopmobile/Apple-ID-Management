@@ -127,7 +127,7 @@ try {
     exportCount - 1, 'Individual deselection after select-all works');
   assert.equal(await page.locator('#export-submit').isEnabled(), true);
   const source = await page.locator('script[src*="customers-export.js"]').getAttribute('src');
-  assert.match(source, /customers-export\\.js\\?v=\\d+/, 'Versioned script avoids stale cached handlers');
+  assert.match(source, /customers-export\.js\?v=\d+/, 'Versioned script avoids stale cached handlers');
   console.log('[browser] isolated export checkbox and label clicks, bulk controls, FormData and cache-busted JS: PASS');
 
   await page.goto(base + '/index.php?route=settings');
