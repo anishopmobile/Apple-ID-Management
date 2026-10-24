@@ -59,10 +59,26 @@ jobs:
           test -s storage/fonts/Vazirmatn-Regular.ttf
       - name: Install Chromium for real UI regression checks
         run: npx playwright install --with-deps chromium
+      - name: Install PDF geometry and rendering verification tools
+        run: |
+          if ! command -v pdfinfo >/dev/null || ! command -v pdftotext >/dev/null || ! command -v pdffonts >/dev/null || ! command -v pdftoppm >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y poppler-utils
+          fi
       - name: Persian PDF and Excel output verification
         run: php tests/exports.php
       - name: End-to-end installation and authentication smoke
+        env:
+          CARD_PDF_VISUAL_PREVIEW: "1"
         run: bash tests/smoke.sh
+      - name: Upload synthetic masked card preview (visual QA)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: apple-id-card-visual-preview
+          path: storage/card-preview-ci.png
+          if-no-files-found: error
+          retention-days: 7
 
   package-ready-site:
     name: Build downloadable site package

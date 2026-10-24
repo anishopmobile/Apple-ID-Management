@@ -87,10 +87,48 @@ php -r '$j=json_decode(file_get_contents($argv[1]),true); if (!is_array($j) || e
 METHOD_CODE="$(curl -sS -o /dev/null -w '%{http_code}' -b "$COOKIE" -c "$COOKIE" -X POST "$BASE/index.php?route=reports_apple_id_card_api")"
 test "$METHOD_CODE" = '405'
 echo '[smoke] authenticated Apple ID Card page/API, 25-row pagination and rejected POST passed'
+# Verify the real PDF HTTP download, binary magic, dimensions and security.
+curl -fsS -b "$COOKIE" -c "$COOKIE" "$BASE/index.php?route=reports_apple_id_card" >"$TMP"
+PDF_CSRF="$(grep -oP 'name="_csrf" value="\K[^"]+' "$TMP" | head -1)"
+CARD_ID="$(php -r 'require "src/common.php"; echo db()->query("SELECT MAX(r.id) FROM ".table("apple_records")." r LEFT JOIN ".table("record_deletions")." d ON d.record_id=r.id WHERE d.record_id IS NULL")->fetchColumn();')"
+PDF_OUT="$(mktemp --suffix=.pdf)"
+PDF_HEADERS="$(mktemp)"
+curl -fsS -b "$COOKIE" -c "$COOKIE" -D "$PDF_HEADERS" -o "$PDF_OUT" \
+  --data-urlencode "_csrf=$PDF_CSRF" --data-urlencode "record_id=$CARD_ID" \
+  --data-urlencode 'include_sensitive=0' \
+  "$BASE/index.php?route=reports_apple_id_card_pdf"
+echo '[smoke pdf diagnostics] HTTP response headers:'
+grep -Ei 'HTTP/|Content-Type:|Content-Disposition:|Content-Length:' "$PDF_HEADERS" || true
+echo '[smoke pdf diagnostics] measured PDF size:'
+pdfinfo -box "$PDF_OUT" | grep -E 'Pages:|Page size:|MediaBox:' || true
+grep -qi 'Content-Type: application/pdf' "$PDF_HEADERS"
+grep -qi "account-card-$CARD_ID.pdf" "$PDF_HEADERS"
+test "$(head -c 5 "$PDF_OUT")" = '%PDF-'
+pdfinfo "$PDF_OUT" | grep -q 'Pages: *1'
+pdfinfo "$PDF_OUT" | grep -q 'Page size: *240.9.*x 155.9.*pts'
+GET_PDF="$(curl -sS -o /dev/null -w '%{http_code}' -b "$COOKIE" -c "$COOKIE" \
+  "$BASE/index.php?route=reports_apple_id_card_pdf")"
+test "$GET_PDF" = '405'
+NO_CSRF="$(curl -sS -o /dev/null -w '%{http_code}' -b "$COOKIE" -c "$COOKIE" \
+  --data-urlencode "record_id=$CARD_ID" "$BASE/index.php?route=reports_apple_id_card_pdf")"
+test "$NO_CSRF" = '419'
+BAD_RECORD="$(curl -sS -o /dev/null -w '%{http_code}' -b "$COOKIE" -c "$COOKIE" \
+  --data-urlencode "_csrf=$PDF_CSRF" --data-urlencode 'record_id=1;DROP TABLE admins' \
+  "$BASE/index.php?route=reports_apple_id_card_pdf")"
+test "$BAD_RECORD" = '400'
+MISSING_RECORD="$(curl -sS -o /dev/null -w '%{http_code}' -b "$COOKIE" -c "$COOKIE" \
+  --data-urlencode "_csrf=$PDF_CSRF" --data-urlencode 'record_id=999999999999999' \
+  "$BASE/index.php?route=reports_apple_id_card_pdf")"
+test "$MISSING_RECORD" = '404'
+rm -f "$PDF_OUT" "$PDF_HEADERS"
+echo '[smoke] real 85x55mm PDF download, CSRF, POST-only, invalid/deleted IDs protected: PASS'
 # Keep the authenticated HTML page in TMP: later CSRF/logout checks read it.
 curl -fsS -b "$COOKIE" -c "$COOKIE" "$BASE/index.php?route=records" >"$TMP"
 echo '[smoke] dynamic record field pages and server integration passed'
 node tests/modal_browser.mjs "$BASE"
+# Run extra PDF fixture creation after the UI suite so its search-count
+# assertions still target the original two 'card-' regression records.
+php tests/apple_id_card_pdf_integration.php
 
 
 TOKEN="$(grep -oP 'name="_csrf" value="\K[^"]+' "$TMP" | head -1)"
