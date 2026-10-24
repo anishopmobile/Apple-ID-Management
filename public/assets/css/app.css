@@ -40,7 +40,11 @@ button, input, select, textarea, .btn { font-family: inherit; }
 .alert { line-height: 2; }
 @media (min-width: 992px) {
   .app-shell { padding-right: 250px; }
-  .app-sidebar { position: fixed; right: 0; top: 0; bottom: 0; width: 250px; }
+  /* Match the actual sidebar width to the shell reservation. Tabler's
+     .navbar-vertical.navbar-expand-lg defaults to 15rem (240px). */
+  .app-shell > .navbar-vertical.app-sidebar {
+    position: fixed; right: 0; top: 0; bottom: 0; width: 250px;
+  }
   /* Tabler already shifts a .page-wrapper by 15rem when it follows a
      vertical navbar. Our shell allocates 250px for the sidebar, so leaving
      Tabler's extra margin causes an unintended double right-hand gap.
