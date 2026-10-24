@@ -68,6 +68,7 @@ echo '[smoke] login, remember cookie and authenticated dashboard passed'
 
 php tests/records_integration.php
 php tests/customers_backup_integration.php
+php tests/customer_export_settings.php
 
 curl -fsS -b "$COOKIE" -c "$COOKIE" "$BASE/index.php?route=records_fields" >"$TMP"
 grep -q 'ایجاد فیلد جدید' "$TMP"
