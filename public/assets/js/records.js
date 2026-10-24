@@ -25,6 +25,8 @@ document.addEventListener('DOMContentLoaded', () => {
       method: 'POST', body, credentials: 'same-origin',
       headers: { 'Accept': 'application/json' }
     });
+    const format = response.headers.get('content-type') || '';
+    if (!format.includes('application/json')) throw new Error('پاسخ سرور معتبر نیست؛ دوباره تلاش کنید.');
     const result = await response.json();
     if (!result.ok) {
       const ex = new Error(result.message || 'عملیات انجام نشد.');
@@ -190,6 +192,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+  const preview = document.getElementById('import-preview');
+  if (preview) requestAnimationFrame(() => preview.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   const commit = document.getElementById('commit-import');
   if (commit) commit.closest('form').addEventListener('submit', () => {
     commit.disabled = true;
