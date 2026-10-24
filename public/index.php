@@ -191,7 +191,7 @@ try {
         $recentSql = 'SELECT r.id,r.apple_email,r.created_at,c.full_name FROM ' . table('apple_records')
             . ' r JOIN ' . table('customers') . ' c ON c.id=r.customer_id';
         if ($hasTombstones) $recentSql .= ' LEFT JOIN ' . table('record_deletions') . ' d ON d.record_id=r.id WHERE d.record_id IS NULL';
-        $recent = db()->query($recentSql . ' ORDER BY r.id DESC LIMIT 8')->fetchAll();
+        $recent = db()->query($recentSql . ' ORDER BY r.id DESC LIMIT 6')->fetchAll();
         $series = [];
         foreach (['customers', 'apple_records'] as $key) {
             if ($key === 'apple_records' && $hasTombstones) {
@@ -218,9 +218,9 @@ try {
           <div class="col-12 col-sm-6 col-lg-4"><div class="card metric-card"><div class="card-body"><div class="d-flex justify-content-between"><div class="subheader">وضعیت سامانه</div><span class="metric-icon text-green">✓</span></div><div class="h2 mt-3 mb-1">فعال و ایمن</div><span class="badge bg-green-lt text-green">پنل فقط مدیر</span></div></div></div>
           <div class="col-12"><section class="card"><div class="card-header"><div><h3 class="card-title">روند ثبت اطلاعات و مشتریان</h3><div class="text-secondary small mt-1">آمار روزانه، ۱۴ روز اخیر</div></div></div>
             <div class="card-body"><div id="dashboard-chart" class="dashboard-chart" aria-label="نمودار خطی اطلاعات و مشتریان" data-labels="<?= e(json_encode($labels, JSON_UNESCAPED_UNICODE)) ?>" data-records="<?= e(json_encode($recordPoints)) ?>" data-customers="<?= e(json_encode($customerPoints)) ?>"></div></div></section></div>
-          <div class="col-12"><section class="card"><div class="card-header"><h3 class="card-title">آخرین اطلاعات ثبت‌شده</h3><span class="badge bg-blue-lt text-blue me-auto">جدیدترین‌ها</span></div>
+          <div class="col-12"><section class="card"><div class="card-header"><h3 class="card-title">آخرین اطلاعات ثبت‌شده (۶ رکورد آخر)</h3><span class="badge bg-blue-lt text-blue me-auto">جدیدترین‌ها</span></div>
             <div class="table-responsive"><table class="table table-vcenter card-table"><thead><tr><th>شناسه</th><th>مشتری</th><th>Apple ID</th><th>تاریخ ثبت (شمسی)</th><th>وضعیت</th></tr></thead><tbody>
-            <?php foreach ($recent as $item): ?><tr><td class="text-secondary">#<?= e((string)$item['id']) ?></td><td><?= e($item['full_name']) ?></td><td dir="ltr" class="text-start"><?= e($item['apple_email'] ?: '—') ?></td><td><?= e(jdatetime($item['created_at'])) ?></td><td><span class="badge bg-green-lt text-green">ثبت‌شده</span></td></tr><?php endforeach; ?>
+            <?php foreach ($recent as $item): ?><tr data-dashboard-recent-record="<?= e((string)$item['id']) ?>"><td class="text-secondary">#<?= e((string)$item['id']) ?></td><td><?= e($item['full_name']) ?></td><td dir="ltr" class="text-start"><?= e($item['apple_email'] ?: '—') ?></td><td><?= e(jdatetime($item['created_at'])) ?></td><td><span class="badge bg-green-lt text-green">ثبت‌شده</span></td></tr><?php endforeach; ?>
             <?php if (!$recent): ?><tr><td colspan="5" class="text-center text-secondary empty-row">هنوز اطلاعاتی ثبت نشده است؛ پس از فعال‌سازی فرم ثبت، داده‌ها اینجا نمایش داده می‌شوند.</td></tr><?php endif; ?>
             </tbody></table></div>
           </section></div>
