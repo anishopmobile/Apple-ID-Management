@@ -69,10 +69,10 @@ try {
     cal_check(date_display_mode()==='jalali','current request cache updated');
     cal_check(RecordManager::dateLabel($sample)===$expectedJalali,'date field Jalali');
     cal_check(display_date($sample)===$expectedJalali,'shared date helper Jalali');
-    cal_check(str_contains(jdatetime('2026-10-24 12:00:00','Y/m/d H:i'),$expectedJalali),
+    cal_check(str_contains(RecordManager::digits(jdatetime('2026-10-24 12:00:00','Y/m/d H:i')),$expectedJalali),
         'dashboard timestamp uses Jalali');
     $customerPage=$customers->listing(['per_page'=>25]);
-    cal_check(str_contains((string)$customerPage['rows'][0]['created_display'],'14'),
+    cal_check(str_contains(RecordManager::digits((string)$customerPage['rows'][0]['created_display']),'14'),
         'customer list date uses Jalali');
 
     foreach (['jalali'=>$expectedJalali,'gregorian'=>$expectedGregorian] as $mode=>$expected) {
@@ -80,7 +80,7 @@ try {
         cal_check(date_display_mode()===$mode,'cached calendar synchronizes after settings update');
         cal_check(setting('date_display_mode')===$mode,'calendar persisted in settings');
         cal_check(RecordManager::dateLabel($sample)===$expected,'record manager display '.$mode);
-        cal_check(jdatetime($sample.' 12:00:00','Y/m/d')===$expected,
+        cal_check(RecordManager::digits(jdatetime($sample.' 12:00:00','Y/m/d'))===$expected,
             'customer/dashboard timestamp display '.$mode);
         cal_check(RecordManager::normalizeDate('۱۴۰۵/۰۸/۰۲')===$sample &&
             RecordManager::normalizeDate('2026/10/24')===$sample,
