@@ -201,7 +201,7 @@ try {
   await page.locator('#commitment-editor-mode').selectOption('advanced');
   await page.waitForFunction(() => Boolean((window.hugeRTE || window.hugerte)?.get?.('commitment-html')));
   const selfHosted=await page.evaluate(() => performance.getEntriesByType('resource').filter(r=>r.name.includes('hugerte')).map(x=>x.name));
-  assert.ok(selfHosted.length>0 && selfHosted.every(url=>new URL(url).origin===location.origin),
+  assert.ok(selfHosted.length>0 && selfHosted.every(url=>new URL(url).origin===new URL(base).origin),
     'All editor assets load only from this host');
   await page.evaluate(() => (window.hugeRTE || window.hugerte).get('commitment-html')
     .setContent('<h2>تعهدنامه مرورگر</h2><p><strong>آزمایش موفق</strong> چاپ PDF A4</p>'));
