@@ -18,7 +18,8 @@ $names=[
 ];
 $ids=[];$existing=$manager->fields();
 foreach ($names as $key=>$label) {
-    $field=next(array_filter($existing,static fn($f)=>$f['label']===$label));
+    $matching=array_values(array_filter($existing,static fn($f)=>$f['label']===$label));
+    $field=$matching[0]??false;
     if ($field===false) {
         $fieldId=$manager->saveField([
             'label'=>$label,'type'=>$key==='birthday'?'date':'text',
