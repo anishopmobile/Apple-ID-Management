@@ -130,6 +130,7 @@ node tests/modal_browser.mjs "$BASE"
 # assertions still target the original two 'card-' regression records.
 php tests/apple_id_card_pdf_integration.php
 
+php tests/commitment_integration.php
 # The Chromium suite just saved a real sanitized commitment and editor mode.
 curl -fsS -b "$COOKIE" -c "$COOKIE" "$BASE/index.php?route=reports_commitment" >"$TMP"
 grep -q 'id="apple-card-search"' "$TMP"
@@ -142,6 +143,10 @@ curl -fsS -b "$COOKIE" -c "$COOKIE" -D "$CM_HEADER" -o "$CM_PDF" \
   --data-urlencode "_csrf=$CM_CSRF" --data-urlencode "record_id=$CM_ID" \
   --data-urlencode 'include_sensitive=0' \
   "$BASE/index.php?route=reports_commitment_pdf"
+echo '[commitment diagnostics] Response headers:'
+grep -Ei 'HTTP/|Content-Type:|Content-Disposition:|Content-Length:' "$CM_HEADER" || true
+echo '[commitment diagnostics] PDF geometry:'
+pdfinfo "$CM_PDF" | grep -E 'Page size:|Pages:' || true
 grep -qi 'Content-Type: application/pdf' "$CM_HEADER"
 grep -qi "commitment-$CM_ID.pdf" "$CM_HEADER"
 test "$(head -c 5 "$CM_PDF")" = '%PDF-'
@@ -162,7 +167,8 @@ rm -f "$CM_PDF" "$CM_HEADER"
 echo '[smoke] commitment A4 download, same card, saved Persian editor text, authentication, POST and CSRF: PASS'
 
 php tests/date_display_integration.php
-php tests/commitment_integration.php
+
+
 
 
 TOKEN="$(grep -oP 'name="_csrf" value="\K[^"]+' "$TMP" | head -1)"
