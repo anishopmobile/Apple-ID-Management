@@ -136,6 +136,36 @@ try {
   assert.equal(await page.locator('#settings-current-password').count(),1,'Current password required');
   assert.equal(await page.locator('#settings-new-password').count(),1,'New password required');
   console.log('[browser] secure site settings forms available: PASS');
+  assert.equal(await page.locator('#settings-date-mode').inputValue(),'jalali',
+    'Existing users retain the default Jalali display setting');
+  await page.locator('#settings-date-mode').selectOption('gregorian');
+  await page.locator('#date-display-settings button[type=submit]').click();
+  assert.equal(await page.locator('#settings-date-mode').inputValue(),'gregorian',
+    'Gregorian preference is stored after submitting the settings form');
+  await page.goto(base + '/index.php?route=customers');
+  assert.match(await page.locator('#customer-list thead').innerText(), /میلادی/,
+    'Customer date column advertises the selected Gregorian calendar');
+  assert.equal(await page.locator('body').getAttribute('data-date-mode'),'gregorian');
+  assert.match(await page.locator('#customer-list tbody tr').first().innerText(), /20\\d{2}\\/\\d{2}\\/\\d{2}/,
+    'Customer dates display Gregorian years');
+  await page.goto(base + '/index.php?route=records');
+  assert.equal(await page.locator('body').getAttribute('data-date-mode'),'gregorian');
+  await page.locator('#record-filters').evaluate(form => form.requestSubmit());
+  await page.waitForFunction(() => document.querySelector('#record-live-status')?.textContent?.includes('رکورد مطابق'));
+  const isoDate=await page.locator('#record-table-body tr').first().innerText();
+  assert.match(isoDate,/20\\d{2}\\/\\d{2}\\/\\d{2}/,
+    'Live AJAX record table displays Gregorian dates');
+  await page.goto(base + '/index.php?route=dashboard');
+  assert.match(await page.locator('main').innerText(), /میلادی/,
+    'Dashboard latest-record date heading changes with setting');
+  await page.goto(base + '/index.php?route=settings');
+  await page.locator('#settings-date-mode').selectOption('jalali');
+  await page.locator('#date-display-settings button[type=submit]').click();
+  assert.equal(await page.locator('#settings-date-mode').inputValue(),'jalali');
+  await page.goto(base + '/index.php?route=customers');
+  assert.match(await page.locator('#customer-list thead').innerText(), /شمسی/,
+    'Switching back restores Jalali customer date column');
+  console.log('[browser] date preference toggles Gregorian/Jalali in settings, customers, record AJAX and dashboard: PASS');
 
   // Apple ID Card is a new Reports submenu, not a customer aggregation:
   // one record equals one table row, with independently searched Apple IDs.
