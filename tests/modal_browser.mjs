@@ -73,16 +73,62 @@ try {
   console.log('[browser] instant customer searches, 25 rows and next page: PASS');
 
   await page.goto(base + '/index.php?route=customers_export');
-  assert.ok(await page.locator('#customer-export-form input[type=checkbox]').count()>3,
-    'Export selector includes configured dynamic fields');
-  const defaults=await page.locator('#customer-export-form input[type=checkbox]:checked').count();
-  assert.equal(defaults,2,'Only name and mobile preselected to avoid secret leakage');
-  await page.locator('#export-select-none').click();
-  assert.equal(await page.locator('#export-submit').isDisabled(),true,
-    'Cannot submit without fields');
+  const exportChecks = page.locator('#customer-export-form input.export-field-check');
+  const exportCount = await exportChecks.count();
+  assert.ok(exportCount > 3, 'Export selector includes configured dynamic fields');
+  assert.equal(await exportChecks.evaluateAll(inputs =>
+    inputs.filter(input => input.checked).length), 2,
+    'Only name and mobile preselected to avoid secret leakage');
+
+  // Real click, not programmatic .checked modification: one label must not
+  // toggle all the other inputs. Tabler CSS and RTL labels are exercised.
+  const ids = await exportChecks.evaluateAll(inputs => inputs.map(input => input.id));
+  assert.equal(new Set(ids).size, exportCount, 'Every checkbox has a unique id');
+  const firstUnchecked = page.locator('#customer-export-form input.export-field-check:not(:checked)').first();
+  const firstFieldId = await firstUnchecked.getAttribute('id');
+  const firstLabel = page.locator('label[for="' + firstFieldId + '"]');
+  assert.equal(await firstLabel.count(), 1, 'Only one label targets each checkbox');
+  await firstLabel.click();
+  assert.equal(await exportChecks.evaluateAll(inputs => inputs.filter(input => input.checked).length),
+    3, 'Clicking a single field checks only that field, without selecting all');
+  await firstLabel.click();
+  assert.equal(await exportChecks.evaluateAll(inputs => inputs.filter(input => input.checked).length),
+    2, 'Clicking again deselects the same field');
+
+  // Bulk controls should alter EVERY checkbox, and the live counter should
+  // report precisely what is sent to the server.
   await page.locator('#export-select-all').click();
-  assert.equal(await page.locator('#export-submit').isEnabled(),true);
-  console.log('[browser] customer export field selection and secret-safe defaults: PASS');
+  assert.equal(await exportChecks.evaluateAll(inputs => inputs.filter(input => input.checked).length),
+    exportCount, 'Select all checks every box');
+  assert.equal(await page.locator('#export-submit').isEnabled(), true);
+  await page.locator('#export-select-none').click();
+  assert.equal(await exportChecks.evaluateAll(inputs => inputs.filter(input => input.checked).length),
+    0, 'Clear selection unchecks every box');
+  assert.equal(await page.locator('#export-submit').isDisabled(), true,
+    'Empty field selection must not allow export');
+  assert.match(await page.locator('#export-selected-count').innerText(), /^0 فیلد از /);
+
+  // The actual checkbox can be clicked directly; selection remains isolated
+  // and PHP's fields[] payload contains only the chosen IDs.
+  await exportChecks.nth(0).click();
+  assert.equal(await exportChecks.evaluateAll(inputs => inputs.filter(input => input.checked).length),
+    1, 'Direct checkbox click checks exactly one option');
+  const selected = await page.locator('#customer-export-form').evaluate(form =>
+    Array.from(new FormData(form).getAll('fields[]')));
+  assert.equal(selected.length, 1, 'FormData includes only the one chosen field');
+  assert.equal(await page.locator('#export-submit').isEnabled(), true);
+  await exportChecks.nth(0).click();
+  assert.equal(await exportChecks.evaluateAll(inputs => inputs.filter(input => input.checked).length),
+    0, 'Click again unchecks the sole field');
+
+  await page.locator('#export-select-all').click();
+  await firstLabel.click();
+  assert.equal(await exportChecks.evaluateAll(inputs => inputs.filter(input => input.checked).length),
+    exportCount - 1, 'Individual deselection after select-all works');
+  assert.equal(await page.locator('#export-submit').isEnabled(), true);
+  const source = await page.locator('script[src*="customers-export.js"]').getAttribute('src');
+  assert.match(source, /customers-export\\.js\\?v=\\d+/, 'Versioned script avoids stale cached handlers');
+  console.log('[browser] isolated export checkbox and label clicks, bulk controls, FormData and cache-busted JS: PASS');
 
   await page.goto(base + '/index.php?route=settings');
   assert.equal(await page.locator('#settings-site-name').count(),1,'Site title editable');
