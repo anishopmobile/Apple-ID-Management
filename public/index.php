@@ -14,7 +14,8 @@ try {
     $route = is_string($_GET['route'] ?? null) ? $_GET['route'] : 'dashboard';
     $routes = [
         'dashboard' => ['داشبورد', 'home'],
-        'records' => ['ثبت اطلاعات', 'clipboard'],
+        'records' => ['ایجاد رکورد', 'clipboard'],
+        'records_fields' => ['ایجاد فیلد', 'settings'],
         'customers' => ['مدیریت مشتریان', 'users'],
         'reports' => ['گزارشات', 'chart'],
         'settings' => ['تنظیمات سایت', 'settings'],
@@ -100,10 +101,23 @@ try {
         exit;
     }
 
+    if (in_array($route, ['records_api', 'records_export'], true)) {
+        require_admin();
+        require_once dirname(__DIR__) . '/src/RecordController.php';
+        (new RecordController())->dispatch($route);
+        exit;
+    }
+
     if (!array_key_exists($route, $routes)) { http_response_code(404); exit('صفحه پیدا نشد.'); }
     $admin = require_admin();
     $site = setting('site_name', 'مدیریت Apple ID');
     $heading = $routes[$route][0];
+    $recordController = null;
+    if (in_array($route, ['records', 'records_fields'], true)) {
+        require_once dirname(__DIR__) . '/src/RecordController.php';
+        $recordController = new RecordController();
+        $recordController->dispatch($route);
+    }
 
     function layout_start(string $site, string $heading, string $route, array $routes, array $admin): void {
         ?>
@@ -115,6 +129,16 @@ try {
         <script src="/assets/vendor/tabler/tabler.min.js" defer></script>
         <script src="/assets/vendor/apexcharts/apexcharts.min.js" defer></script>
         <script src="/assets/js/app.js" defer></script>
+        <?php if (in_array($route, ['records','records_fields'], true)): ?>
+        <link rel="stylesheet" href="/assets/vendor/hcg/hcg-select.css">
+        <link rel="stylesheet" href="/assets/vendor/persian-datepicker/persian-datepicker.min.css">
+        <script src="/assets/vendor/jquery/jquery.min.js" defer></script>
+        <script src="/assets/vendor/persian-date/persian-date.min.js" defer></script>
+        <script src="/assets/vendor/persian-datepicker/persian-datepicker.min.js" defer></script>
+        <script src="/assets/vendor/hcg/hcg-select.js" defer></script>
+        <script src="/assets/js/records.js" defer></script>
+        <?php endif; ?>
+        <meta name="csrf-token" content="<?=e(csrf())?>">
         </head><body class="theme-light">
         <div class="page app-shell">
         <aside class="navbar navbar-vertical navbar-expand-lg app-sidebar" data-bs-theme="dark">
@@ -123,8 +147,15 @@ try {
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-menu" aria-controls="sidebar-menu" aria-expanded="false" aria-label="بازکردن منو"><span class="navbar-toggler-icon"></span></button>
             <div class="collapse navbar-collapse" id="sidebar-menu"><ul class="navbar-nav pt-lg-4">
               <li class="nav-item"><a class="nav-link <?= $route === 'dashboard' ? 'active' : '' ?>" href="/index.php"><span class="nav-link-icon">▦</span><span class="nav-link-title">داشبورد</span></a></li>
-              <?php foreach ($routes as $slug => $meta): if ($slug === 'dashboard') { continue; } ?>
-              <li class="nav-item"><a class="nav-link <?= $route === $slug ? 'active' : '' ?>" href="/index.php?route=<?= e($slug) ?>"><span class="nav-link-icon"><?= e(['records' => '✚', 'customers' => '♙', 'reports' => '▤', 'settings' => '⚙', 'backup' => '◫'][$slug]) ?></span><span class="nav-link-title"><?= e($meta[0]) ?></span></a></li>
+              <li class="nav-item">
+                <div class="nav-link <?= in_array($route,['records','records_fields'],true)?'active':'' ?>"><span class="nav-link-icon">✚</span><span class="nav-link-title">ثبت اطلاعات</span></div>
+                <div class="nav-submenu">
+                  <a class="nav-link nav-subitem <?= $route === 'records_fields'?'active':'' ?>" href="/index.php?route=records_fields">ایجاد فیلد</a>
+                  <a class="nav-link nav-subitem <?= $route === 'records'?'active':'' ?>" href="/index.php?route=records">ایجاد رکورد</a>
+                </div>
+              </li>
+              <?php foreach ($routes as $slug => $meta): if (in_array($slug,['dashboard','records','records_fields'],true)) continue; ?>
+              <li class="nav-item"><a class="nav-link <?= $route === $slug ? 'active' : '' ?>" href="/index.php?route=<?= e($slug) ?>"><span class="nav-link-icon"><?= e(['customers' => '♙', 'reports' => '▤', 'settings' => '⚙', 'backup' => '◫'][$slug]) ?></span><span class="nav-link-title"><?= e($meta[0]) ?></span></a></li>
               <?php endforeach; ?>
             </ul></div>
           </div>
@@ -180,6 +211,8 @@ try {
           </section></div>
         </div>
         <?php
+    } elseif ($recordController !== null) {
+        $recordController->render($route);
     } else {
         ?>
         <div class="card"><div class="card-body empty-state"><div class="empty-state-icon">◈</div><h3><?= e($heading) ?></h3><p class="text-secondary">ساختار این بخش آماده است. امکانات اختصاصی آن پس از دریافت جزئیات مرحله بعد پیاده‌سازی می‌شود.</p><span class="badge bg-yellow-lt text-yellow">در انتظار تعریف امکانات</span></div></div>
