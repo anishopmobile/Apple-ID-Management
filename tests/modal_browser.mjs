@@ -159,7 +159,7 @@ try {
   assert.match(await page.locator('#customer-list thead').innerText(), /شمسی/,
     'System customer registration heading always Jalali despite Gregorian global mode');
   assert.equal(await page.locator('body').getAttribute('data-date-mode'),'gregorian');
-  assert.match(await page.locator('#customer-list tbody tr').first().innerText(), /[۰-۹]{4}\\/[۰-۹]{2}\\/[۰-۹]{2}/,
+  assert.match(await page.locator('#customer-list tbody tr').first().innerText(), new RegExp('[۰-۹]{4}/[۰-۹]{2}/[۰-۹]{2}'),
     'Customer date values remain Jalali under Gregorian mode');
   await page.goto(base + '/index.php?route=records');
   assert.equal(await page.locator('body').getAttribute('data-date-mode'),'gregorian');
@@ -171,7 +171,7 @@ try {
   assert.equal(await dateHeader.count(),1,'Record system created-at column is rendered');
   const createAtColumn=await dateHeader.evaluate(a => Array.from(a.closest('tr').children).indexOf(a.closest('th')));
   const createdValue=await page.locator('#record-table-body tr[data-record-id],#record-table-body tr').first().locator('td').nth(createAtColumn).innerText();
-  assert.match(createdValue,/[۰-۹]{4}\\/[۰-۹]{2}\\/[۰-۹]{2}/,
+  assert.match(createdValue,new RegExp('[۰-۹]{4}/[۰-۹]{2}/[۰-۹]{2}'),
     'AJAX record system created_at remains Jalali even when general calendar is Gregorian');
   await page.goto(base + '/index.php?route=dashboard');
   assert.match(await page.locator('main').innerText(), /شمسی/,
