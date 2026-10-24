@@ -49,8 +49,26 @@ check(RecordManager::mobile('00989123456789')==='09123456789','0098 normalizatio
 check(RecordManager::mobile('9123456789')===null,'unsafe/mobile missing leading zero rejected');
 check(RecordManager::normalizeDate('۱۴۰۵/۰۸/۰۱')!==null,'Persian date accepted');
 check(RecordManager::normalizeDate('۱۴۰۵/۱۳/۴۰')===null,'invalid Jalali date rejected');
+check(RecordManager::normalizeDate('2026/10/24')==='2026-10-24','Gregorian slash date accepted');
+check(RecordManager::normalizeDate('۲۰۲۶/۱۰/۲۴')==='2026-10-24','Gregorian Persian digits accepted');
+check(RecordManager::normalizeDate('2026-10-24')==='2026-10-24','Gregorian ISO date accepted');
+check(RecordManager::normalizeDate('2026/1/4')==='2026-01-04','non-padded Gregorian month/day accepted');
+check(RecordManager::normalizeDate('2026/02/29')===null,'invalid Gregorian leap day rejected');
+check(RecordManager::normalizeDate('2024/02/29')==='2024-02-29','valid Gregorian leap day accepted');
+check(RecordManager::normalizeDate('1405/08/02')===RecordManager::normalizeDate('2026/10/24'),
+    'Jalali/Gregorian calendar choices normalize to same stored date');
+check(RecordManager::normalizeDate('not-a-date')===null,'unparseable date rejected');
 $beforeCustomers=(int)db()->query('SELECT COUNT(*) FROM ' . table('customers'))->fetchColumn();
 $rec1=$manager->saveRecord($values);
+$dates=$values;
+$dates[(int)$new['date']['id']]='۲۰۲۶/۱۰/۲۴';
+$gregorianRecordId=$manager->saveRecord($dates);
+check($manager->record($gregorianRecordId)['values'][(int)$new['date']['id']]==='2026-10-24',
+    'Gregorian date saved as canonical ISO in real MySQL record');
+$manager->saveRecord($dates,$gregorianRecordId);
+check($manager->record($gregorianRecordId)['values'][(int)$new['date']['id']]==='2026-10-24',
+    'Gregorian date survives record update');
+$manager->deleteRecord($gregorianRecordId); // Keep existing pagination assertions unchanged.
 $values[(int)$fields['mobile']['id']]='+989123456789';
 $values[(int)$fields['customer_name']['id']]='نام متفاوت برای همان مشتری';
 $rec2=$manager->saveRecord($values);
@@ -189,4 +207,14 @@ check($manager->fieldById((int)$new['text']['id'])===null,'soft deleted field hi
 $q=db()->prepare('SELECT COUNT(*) FROM ' . $manager->t('record_values') . ' WHERE field_id=?');
 $q->execute([(int)$new['text']['id']]);
 check((int)$q->fetchColumn()>0,'old field values not deleted');
+// Stress the real browser modal with a long, dynamic form (>30 fields).
+// These are all optional so existing records remain valid. This test DB is isolated.
+for ($i=1;$i<=32;$i++) {
+    $manager->saveField([
+        'label'=>'فیلد اضافی تست پیمایش ' . $i,
+        'type'=>'text','sort_order'=>200+$i,'max_length'=>200,
+        'required'=>0,'show_in_table'=>0,'filterable'=>0,'active'=>1,
+    ]);
+}
+check(count($manager->activeFields())>=42, 'long dynamic record modal has 42+ fields');
 echo "[records] field types, validation, stable IDs, customers, transactions, typed filters, pagination, XLSX import/export and soft delete: PASS\n";

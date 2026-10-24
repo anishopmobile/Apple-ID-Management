@@ -278,7 +278,7 @@ final class RecordController
             $extra = match($type) {
                 'mobile'=>' inputmode="tel" maxlength="25" placeholder="09123456789"',
                 'number','money'=>' inputmode="decimal" placeholder="مثلاً 12345.50"',
-                'date'=>' data-jalali-date placeholder="۱۴۰۵/۰۸/۰۱"',
+                'date'=>' data-jalali-date placeholder="۱۴۰۵/۰۸/۰۲ یا ۲۰۲۶/۱۰/۲۴"',
                 'text'=>' maxlength="'.(int)$field['max_length'].'"',
                 default=>'',
             };
@@ -320,7 +320,7 @@ final class RecordController
             $id=(int)$f['id']; $type=$f['type'];
         ?>
           <?php if (in_array($type,['number','money','date'],true)): ?>
-          <div class="col-sm-6 col-lg-3"><label class="form-label"><?=e($f['label'])?> (از)</label><input class="form-control <?= $type==='date'?'jalali-filter':'ltr-input'?>" <?= $type==='date'?'data-jalali-date':'' ?> name="filter_min[<?=$id?>]" value="<?=e((string)($_GET['filter_min'][$id]??''))?>" placeholder="<?= $type==='date'?'۱۴۰۵/۰۸/۰۱':'حداقل'?>"></div>
+          <div class="col-sm-6 col-lg-3"><label class="form-label"><?=e($f['label'])?> (از)</label><input class="form-control <?= $type==='date'?'jalali-filter':'ltr-input'?>" <?= $type==='date'?'data-jalali-date':'' ?> name="filter_min[<?=$id?>]" value="<?=e((string)($_GET['filter_min'][$id]??''))?>" placeholder="<?= $type==='date'?'شمسی یا میلادی':'حداقل'?>"></div>
           <div class="col-sm-6 col-lg-3"><label class="form-label"><?=e($f['label'])?> (تا)</label><input class="form-control <?= $type==='date'?'jalali-filter':'ltr-input'?>" <?= $type==='date'?'data-jalali-date':'' ?> name="filter_max[<?=$id?>]" value="<?=e((string)($_GET['filter_max'][$id]??''))?>" placeholder="<?= $type==='date'?'۱۴۰۵/۰۸/۰۱':'حداکثر'?>"></div>
           <?php elseif ($type==='select' || $type==='boolean'): ?>
           <div class="col-sm-6 col-lg-3"><label class="form-label"><?=e($f['label'])?></label><select class="form-select" data-hcg-select name="filter[<?=$id?>]"><option value="">همه</option>
@@ -371,13 +371,13 @@ final class RecordController
               <?php endforeach;?>
             </div>
           </div></section>
-        <div class="modal modal-blur fade" id="record-modal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
+        <div class="modal modal-blur fade" id="record-modal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable record-modal-dialog"><div class="modal-content">
         <form id="record-form" method="post" action="/index.php?route=records_api">
         <div class="modal-header"><h5 class="modal-title" id="record-modal-title">ایجاد رکورد جدید</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
         <div class="modal-body">
           <input type="hidden" name="_csrf" value="<?=e(csrf())?>"><input type="hidden" name="action" value="record_save"><input type="hidden" name="id" value="">
           <div class="alert alert-danger form-error d-none" role="alert"></div>
-          <p class="text-secondary small">تاریخ ثبت به‌صورت خودکار ثبت می‌شود. شماره موبایل، شناسه یکتای مشتری است.</p><div class="row g-3">
+          <p class="text-secondary small">تاریخ ثبت به‌صورت خودکار ثبت می‌شود. شماره موبایل، شناسه یکتای مشتری است. تاریخ فیلدهای دلخواه را می‌توانید با تقویم شمسی یا میلادی انتخاب یا وارد کنید.</p><div class="row g-3">
           <?php foreach ($fields as $f): if ($f['field_key']==='created_at') continue; self::fieldControl($f,$f['label']); endforeach;?>
           </div>
         </div><div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">انصراف</button><button type="submit" class="btn btn-primary">ذخیره رکورد</button></div>
