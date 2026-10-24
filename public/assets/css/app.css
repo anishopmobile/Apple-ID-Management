@@ -121,7 +121,7 @@ button, input, select, textarea, .btn { font-family: inherit; }
    Native field choices remain independent even on narrow RTL screens. */
 #settings-layout { max-width: 1600px; margin-inline: auto; }
 #settings-layout .row > [class*="col-"] { min-width: 0; }
-#settings-layout .card { overflow: hidden; }
+#settings-layout .card { min-width: 0; }
 #settings-layout .card-header { min-height: 58px; }
 #settings-layout .card-body { min-width: 0; }
 #date-exception-fields { min-width: 0; }
