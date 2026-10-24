@@ -105,7 +105,22 @@ final class RecordController
 
     private function previewUpload(): void
     {
+        $oldStage = $_SESSION['record_import_preview'] ?? null;
         unset($_SESSION['record_import_preview']);
+        if (is_array($oldStage) && isset($oldStage['path']) && is_string($oldStage['path']) &&
+            str_starts_with($oldStage['path'], STORAGE_PATH . '/imports/')) {
+            @unlink($oldStage['path']);
+        }
+        // Abandoned previews are not retained indefinitely. Only randomly
+        // named staged uploads in this private directory are eligible.
+        $importDir = STORAGE_PATH . '/imports';
+        foreach (glob($importDir . '/*.xlsx') ?: [] as $abandoned) {
+            if (preg_match('/^[a-f0-9]{48}\.xlsx$/D', basename($abandoned)) &&
+                is_file($abandoned) && !is_link($abandoned) &&
+                (time() - (int)filemtime($abandoned)) > 3600) {
+                @unlink($abandoned);
+            }
+        }
         try {
             $upload=$_FILES['xlsx'] ?? null;
             if (!is_array($upload) || ($upload['error'] ?? -1) !== UPLOAD_ERR_OK ||
